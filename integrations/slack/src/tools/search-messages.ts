@@ -1,18 +1,20 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
 export let searchMessages = SlateTool.create(spec, {
   name: 'Search Messages',
   key: 'search_messages',
-  description: `Search for messages across a Slack workspace by keyword query. Results include the message text, channel, sender, and timestamp. Requires a user token with the \`search:read\` user scope (include it under User Token Scopes for the Slack app used with OAuth).`,
-  constraints: ['This endpoint requires a **user token** (xoxp-), not a bot token.'],
+  description: `Search for messages across a Slack workspace by keyword query. Results include the message text, channel, sender, and timestamp. Requires a user token with the \`search:read\` user scope.`,
+  constraints: ['This endpoint requires a user token with the search:read scope.'],
   tags: {
     destructive: false,
     readOnly: true
   }
 })
+  .scopes(slackActionScopes.search)
   .input(
     z.object({
       query: z

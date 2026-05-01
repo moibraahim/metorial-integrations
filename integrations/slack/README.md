@@ -1,6 +1,6 @@
 # <img src="https://provider-logos.metorial-cdn.com/slack.svg" height="20"> Slack
 
-Use a Slack bot token to send, update, delete, and schedule messages; list and cancel scheduled messages; open DMs and group DMs; manage conversations, members, files, reactions, pins, bookmarks, and user groups; and retrieve user, conversation, and workspace info.
+Use Slack bot OAuth or user OAuth to send, update, delete, and schedule messages; list and cancel scheduled messages; open DMs and group DMs; manage conversations, members, files, reactions, pins, bookmarks, reminders, user groups, and user status; search messages and files with user scopes; and retrieve user, conversation, and workspace info.
 
 ## Tools
 
@@ -51,6 +51,22 @@ Add, remove, or list emoji reactions on a Slack message. Use this to react to me
 ### Manage User Groups
 
 Create, update, enable, disable, or list user groups (also known as @mention handle groups) in Slack. Manage group membership by setting the full member list.
+
+### Manage User Status
+
+Get, set, or clear the authorized Slack user's custom status.
+
+### Manage Reminders
+
+Create, complete, delete, or list Slack reminders. Reminders notify a user at a specified time with a custom message.
+
+### Search Messages
+
+Search for messages across a Slack workspace by keyword query.
+
+### Search Files
+
+Search for files across a Slack workspace by keyword query.
 
 ### Manage Scheduled Messages
 

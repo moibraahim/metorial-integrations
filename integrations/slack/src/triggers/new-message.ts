@@ -1,5 +1,6 @@
 import { SlateTrigger, SlateDefaultPollingIntervalSeconds } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ export let newMessage = SlateTrigger.create(spec, {
   description:
     '[Polling fallback] Triggers when a new message is posted in one or more Slack channels. Polls conversation history for new messages.'
 })
+  .scopes(slackActionScopes.messagePolling)
   .input(
     z.object({
       messageTs: z.string().describe('Message timestamp'),

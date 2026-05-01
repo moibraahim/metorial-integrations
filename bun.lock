@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@metorial/integrations-root",
@@ -5373,7 +5374,7 @@
     },
     "integrations/google-cloud-speech": {
       "name": "@slates-integrations/google-cloud-speech",
-      "version": "0.2.0-rc.3",
+      "version": "0.2.0-rc.4",
       "dependencies": {
         "@types/node": "^20",
         "slates": "1.0.0-rc.9",
@@ -5387,7 +5388,7 @@
     },
     "integrations/google-cloud-storage": {
       "name": "@slates-integrations/google-cloud-storage",
-      "version": "0.2.0-rc.3",
+      "version": "0.2.0-rc.4",
       "dependencies": {
         "@types/node": "^20",
         "slates": "1.0.0-rc.9",
@@ -5569,7 +5570,7 @@
     },
     "integrations/google-tasks": {
       "name": "@slates-integrations/google-tasks",
-      "version": "0.2.0-rc.3",
+      "version": "0.2.0-rc.4",
       "dependencies": {
         "@types/node": "^20",
         "slates": "1.0.0-rc.9",
@@ -6123,8 +6124,9 @@
     },
     "integrations/hubspot": {
       "name": "@slates-integrations/hubspot",
-      "version": "0.2.0-rc.3",
+      "version": "0.2.0-rc.7",
       "dependencies": {
+        "@lowerdeck/error": "^1.1.0",
         "@types/node": "^20",
         "slates": "1.0.0-rc.9",
         "zod": "^4.2",
@@ -11118,9 +11120,10 @@
     },
     "integrations/slack": {
       "name": "@slates-integrations/slack",
-      "version": "0.2.0-rc.5",
+      "version": "0.2.0-rc.10",
       "dependencies": {
-        "@slates/slack-tools": "1.0.0-rc.1",
+        "@lowerdeck/error": "^1.1.0",
+        "@slates/slack-tools": "1.0.0-rc.4",
         "@types/node": "^20",
         "slates": "1.0.0-rc.9",
         "zod": "^4.2",
@@ -11129,19 +11132,6 @@
         "@slates/test": "1.0.0-rc.4",
         "typescript": "^5",
         "vitest": "^3.1.2",
-      },
-    },
-    "integrations/slack-user": {
-      "name": "@slates-integrations/slack-user",
-      "version": "0.2.0-rc.4",
-      "dependencies": {
-        "@slates/slack-tools": "1.0.0-rc.1",
-        "@types/node": "^20",
-        "slates": "1.0.0-rc.9",
-        "zod": "^4.2",
-      },
-      "devDependencies": {
-        "typescript": "^5",
       },
     },
     "integrations/slite": {
@@ -13638,8 +13628,9 @@
     },
     "packages/slack-tools": {
       "name": "@slates/slack-tools",
-      "version": "1.0.0-rc.1",
+      "version": "1.0.0-rc.4",
       "dependencies": {
+        "@lowerdeck/error": "^1.1.0",
         "slates": "1.0.0-rc.9",
         "zod": "^4.2",
       },
@@ -13683,6 +13674,19 @@
       "version": "1.0.0-rc.1",
       "dependencies": {
         "@types/node": "^22.15.3",
+      },
+    },
+    "test-integrations/test-attachments": {
+      "name": "@slates-integrations/test-attachments",
+      "version": "0.1.0-rc.3",
+      "dependencies": {
+        "@types/node": "^20",
+        "slates": "1.0.0-rc.9",
+        "zod": "^4.2",
+      },
+      "devDependencies": {
+        "typescript": "^5",
+        "vitest": "^3.1.2",
       },
     },
     "test-integrations/test-errors": {
@@ -13740,6 +13744,19 @@
     "test-integrations/test-public-apis": {
       "name": "@slates-integrations/test-public-apis",
       "version": "0.1.0-rc.2",
+      "dependencies": {
+        "@types/node": "^20",
+        "slates": "1.0.0-rc.9",
+        "zod": "^4.2",
+      },
+      "devDependencies": {
+        "typescript": "^5",
+        "vitest": "^3.1.2",
+      },
+    },
+    "test-integrations/test-triggers": {
+      "name": "@slates-integrations/test-triggers",
+      "version": "0.1.0-rc.3",
       "dependencies": {
         "@types/node": "^20",
         "slates": "1.0.0-rc.9",
@@ -15984,8 +16001,6 @@
 
     "@slates-integrations/slack": ["@slates-integrations/slack@workspace:integrations/slack"],
 
-    "@slates-integrations/slack-user": ["@slates-integrations/slack-user@workspace:integrations/slack-user"],
-
     "@slates-integrations/slite": ["@slates-integrations/slite@workspace:integrations/slite"],
 
     "@slates-integrations/smartsheet": ["@slates-integrations/smartsheet@workspace:integrations/smartsheet"],
@@ -16126,6 +16141,8 @@
 
     "@slates-integrations/terraform-cloud": ["@slates-integrations/terraform-cloud@workspace:integrations/terraform-cloud"],
 
+    "@slates-integrations/test-attachments": ["@slates-integrations/test-attachments@workspace:test-integrations/test-attachments"],
+
     "@slates-integrations/test-errors": ["@slates-integrations/test-errors@workspace:test-integrations/test-errors"],
 
     "@slates-integrations/test-http": ["@slates-integrations/test-http@workspace:test-integrations/test-http"],
@@ -16135,6 +16152,8 @@
     "@slates-integrations/test-oauth": ["@slates-integrations/test-oauth@workspace:test-integrations/test-oauth"],
 
     "@slates-integrations/test-public-apis": ["@slates-integrations/test-public-apis@workspace:test-integrations/test-public-apis"],
+
+    "@slates-integrations/test-triggers": ["@slates-integrations/test-triggers@workspace:test-integrations/test-triggers"],
 
     "@slates-integrations/textcortex": ["@slates-integrations/textcortex@workspace:integrations/textcortex"],
 

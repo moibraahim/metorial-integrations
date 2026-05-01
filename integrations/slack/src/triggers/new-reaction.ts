@@ -1,5 +1,6 @@
 import { SlateTrigger, SlateDefaultPollingIntervalSeconds } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ export let newReaction = SlateTrigger.create(spec, {
   description:
     '[Polling fallback] Triggers when a new emoji reaction is added to a message. Polls recent messages in channels the bot is a member of to detect new reactions.'
 })
+  .scopes(slackActionScopes.reactionEvents)
   .input(
     z.object({
       channelId: z.string().describe('Channel ID'),

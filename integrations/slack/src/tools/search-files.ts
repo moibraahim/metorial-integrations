@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -21,12 +22,13 @@ export let searchFiles = SlateTool.create(spec, {
   name: 'Search Files',
   key: 'search_files',
   description: `Search for files across a Slack workspace by keyword query. Requires a user token with the \`search:read\` scope.`,
-  constraints: ['This endpoint requires a **user token** (xoxp-), not a bot token.'],
+  constraints: ['This endpoint requires a user token with the search:read scope.'],
   tags: {
     destructive: false,
     readOnly: true
   }
 })
+  .scopes(slackActionScopes.search)
   .input(
     z.object({
       query: z

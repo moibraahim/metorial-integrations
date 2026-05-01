@@ -1,4 +1,5 @@
 import { createAxios } from 'slates';
+import { slackApiError, slackServiceError } from './errors';
 import type {
   SlackResponse,
   SlackMessage,
@@ -8,6 +9,7 @@ import type {
   SlackScheduledMessage,
   SlackPin,
   SlackUserGroup,
+  SlackReminder,
   SlackTeamInfo,
   SlackBookmark
 } from './types';
@@ -32,7 +34,7 @@ export class SlackClient {
     let response = await this.axios.post(`/${method}`, params || {});
     let data = response.data as T;
     if (!data.ok) {
-      throw new Error(`Slack API error (${method}): ${data.error || 'Unknown error'}`);
+      throw slackApiError(method, data.error);
     }
     return data;
   }
@@ -44,7 +46,7 @@ export class SlackClient {
     let response = await this.axios.get(`/${method}`, { params });
     let data = response.data as T;
     if (!data.ok) {
-      throw new Error(`Slack API error (${method}): ${data.error || 'Unknown error'}`);
+      throw slackApiError(method, data.error);
     }
     return data;
   }
@@ -162,9 +164,10 @@ export class SlackClient {
     if (params?.limit) query.limit = params.limit;
     if (params?.cursor) query.cursor = params.cursor;
 
-    let data = await this.get<
-      SlackResponse & { scheduled_messages: SlackScheduledMessage[] }
-    >('chat.scheduledMessages.list', query);
+    let data = await this.get<SlackResponse & { scheduled_messages: SlackScheduledMessage[] }>(
+      'chat.scheduledMessages.list',
+      query
+    );
     return {
       scheduledMessages: data.scheduled_messages,
       nextCursor: data.response_metadata?.next_cursor || undefined
@@ -403,10 +406,34 @@ export class SlackClient {
     return data.user;
   }
 
-  async getUserProfile(userId: string): Promise<SlackUser['profile']> {
+  async getUserProfile(userId?: string): Promise<SlackUser['profile']> {
+    let query: Record<string, any> = {};
+    if (userId) query.user = userId;
+
     let data = await this.get<SlackResponse & { profile: SlackUser['profile'] }>(
       'users.profile.get',
-      { user: userId }
+      query
+    );
+    return data.profile;
+  }
+
+  async setUserProfile(profile: {
+    statusText?: string;
+    statusEmoji?: string;
+    statusExpiration?: number;
+  }): Promise<SlackUser['profile']> {
+    let body: Record<string, any> = {
+      profile: {}
+    };
+    if (profile.statusText !== undefined) body.profile.status_text = profile.statusText;
+    if (profile.statusEmoji !== undefined) body.profile.status_emoji = profile.statusEmoji;
+    if (profile.statusExpiration !== undefined) {
+      body.profile.status_expiration = profile.statusExpiration;
+    }
+
+    let data = await this.call<SlackResponse & { profile: SlackUser['profile'] }>(
+      'users.profile.set',
+      body
     );
     return data.profile;
   }
@@ -494,9 +521,7 @@ export class SlackClient {
       upload_url: string;
     };
     if (!upload.ok) {
-      throw new Error(
-        `Slack API error (files.getUploadURLExternal): ${upload.error || 'Unknown error'}`
-      );
+      throw slackApiError('files.getUploadURLExternal', upload.error);
     }
 
     let uploadResponse = await fetch(upload.upload_url, {
@@ -507,7 +532,7 @@ export class SlackClient {
       body: content
     });
     if (!uploadResponse.ok) {
-      throw new Error(`Slack file upload failed: HTTP ${uploadResponse.status}`);
+      throw slackServiceError(`Slack file upload failed: HTTP ${uploadResponse.status}`);
     }
 
     let completeBody: Record<string, any> = {
@@ -664,6 +689,38 @@ export class SlackClient {
     return data.users;
   }
 
+  // ─── Reminders ─────────────────────────────────────────────────
+
+  async addReminder(params: {
+    text: string;
+    time: string | number;
+    user?: string;
+  }): Promise<SlackReminder> {
+    let body: Record<string, any> = { text: params.text, time: params.time };
+    if (params.user) body.user = params.user;
+
+    let data = await this.call<SlackResponse & { reminder: SlackReminder }>(
+      'reminders.add',
+      body
+    );
+    return data.reminder;
+  }
+
+  async completeReminder(reminderId: string): Promise<void> {
+    await this.call('reminders.complete', { reminder: reminderId });
+  }
+
+  async deleteReminder(reminderId: string): Promise<void> {
+    await this.call('reminders.delete', { reminder: reminderId });
+  }
+
+  async listReminders(): Promise<SlackReminder[]> {
+    let data = await this.get<SlackResponse & { reminders: SlackReminder[] }>(
+      'reminders.list'
+    );
+    return data.reminders;
+  }
+
   // ─── Bookmarks ─────────────────────────────────────────────────
 
   async addBookmark(params: {
@@ -722,6 +779,48 @@ export class SlackClient {
   async getTeamInfo(): Promise<SlackTeamInfo> {
     let data = await this.get<SlackResponse & { team: SlackTeamInfo }>('team.info');
     return data.team;
+  }
+
+  // ─── Search ───────────────────────────────────────────────────
+
+  async searchMessages(params: {
+    query: string;
+    sort?: string;
+    sortDir?: string;
+    count?: number;
+    page?: number;
+  }): Promise<{ messages: { total: number; matches: any[] }; nextCursor?: string }> {
+    let query: Record<string, any> = { query: params.query };
+    if (params.sort) query.sort = params.sort;
+    if (params.sortDir) query.sort_dir = params.sortDir;
+    if (params.count) query.count = params.count;
+    if (params.page) query.page = params.page;
+
+    let data = await this.get<SlackResponse & { messages: { total: number; matches: any[] } }>(
+      'search.messages',
+      query
+    );
+    return { messages: data.messages };
+  }
+
+  async searchFiles(params: {
+    query: string;
+    sort?: string;
+    sortDir?: string;
+    count?: number;
+    page?: number;
+  }): Promise<{ files: { total: number; matches: any[] } }> {
+    let query: Record<string, any> = { query: params.query };
+    if (params.sort) query.sort = params.sort;
+    if (params.sortDir) query.sort_dir = params.sortDir;
+    if (params.count) query.count = params.count;
+    if (params.page) query.page = params.page;
+
+    let data = await this.get<SlackResponse & { files: { total: number; matches: any[] } }>(
+      'search.files',
+      query
+    );
+    return { files: data.files };
   }
 
   // ─── Open Conversation (DM) ───────────────────────────────────

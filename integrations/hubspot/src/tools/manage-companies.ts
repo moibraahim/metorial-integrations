@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -23,6 +24,7 @@ export let createCompany = SlateTool.create(spec, {
   description: `Create a new company in HubSpot CRM. Provide company properties such as name, domain, industry, and any custom properties.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createCompany)
   .input(
     z.object({
       properties: companyPropertySchema,
@@ -70,6 +72,7 @@ export let getCompany = SlateTool.create(spec, {
   description: `Retrieve a company from HubSpot CRM by ID. Optionally specify which properties and associations to include.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getCompany)
   .input(
     z.object({
       companyId: z.string().describe('HubSpot company ID'),
@@ -109,6 +112,7 @@ export let updateCompany = SlateTool.create(spec, {
   description: `Update an existing company's properties in HubSpot CRM. Only the provided properties will be updated.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.updateCompany)
   .input(
     z.object({
       companyId: z.string().describe('HubSpot company ID to update'),
@@ -143,6 +147,7 @@ export let deleteCompany = SlateTool.create(spec, {
   description: `Archive (soft delete) a company in HubSpot CRM. The company can be restored later.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteCompany)
   .input(
     z.object({
       companyId: z.string().describe('HubSpot company ID to delete')
@@ -170,6 +175,7 @@ export let listCompanies = SlateTool.create(spec, {
   description: `List companies from HubSpot CRM with pagination support.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listCompanies)
   .input(
     z.object({
       limit: z

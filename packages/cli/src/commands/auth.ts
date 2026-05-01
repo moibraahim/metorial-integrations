@@ -20,6 +20,14 @@ import {
 import { JsonInput, WithProfile } from '../lib/types';
 
 type JsonObject = Record<string, any>;
+let NOTION_INTEGRATION_KEY = 'notion';
+let SALESFORCE_INTEGRATION_KEY = 'salesforce';
+let HUBSPOT_INTEGRATION_KEY = 'hubspot';
+let HUBSPOT_DEVELOPER_PLATFORM_OAUTH_METHOD_ID = 'developer_platform_oauth';
+let LOOPBACK_REDIRECT_NORMALIZED_INTEGRATIONS = new Set([
+  NOTION_INTEGRATION_KEY,
+  SALESFORCE_INTEGRATION_KEY
+]);
 
 type AuthSetupOptions = WithProfile &
   JsonInput & {
@@ -32,9 +40,14 @@ type AuthSetupOptions = WithProfile &
 
 export let normalizeCallbackRedirectUriForIntegration = (
   integration: string,
-  redirectUri: string
+  redirectUri: string,
+  authMethodId?: string
 ) => {
-  if (integration === 'notion' || integration === 'salesforce') {
+  if (
+    LOOPBACK_REDIRECT_NORMALIZED_INTEGRATIONS.has(integration) ||
+    (integration === HUBSPOT_INTEGRATION_KEY &&
+      authMethodId === HUBSPOT_DEVELOPER_PLATFORM_OAUTH_METHOD_ID)
+  ) {
     return normalizeMicrosoftRedirectUri(redirectUri);
   }
 
@@ -246,7 +259,11 @@ let chooseOAuthCredentialsForSetup = async (opts: {
 };
 
 let runAuthSetup = async (opts: AuthSetupOptions): Promise<SlatesStoredAuth> => {
-  let { store, profile, client } = await createClientContext(opts);
+  let { store, profile, client } = await createClientContext({
+    ...opts,
+    autoRefresh: false
+  });
+  client.clearAuth();
   let authMethod = await chooseAuthMethod({
     client,
     authMethodId: opts.authMethodId,
@@ -280,7 +297,8 @@ let runAuthSetup = async (opts: AuthSetupOptions): Promise<SlatesStoredAuth> => 
     let callback = await createOAuthCallbackListener();
     let redirectUri = normalizeCallbackRedirectUriForIntegration(
       opts.integration,
-      callback.redirectUri
+      callback.redirectUri,
+      authMethod.id
     );
     console.log(`OAuth redirect URL: ${redirectUri}`);
 

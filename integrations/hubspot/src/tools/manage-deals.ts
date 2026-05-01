@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -23,6 +24,7 @@ export let createDeal = SlateTool.create(spec, {
   description: `Create a new deal in HubSpot CRM. Provide deal properties such as dealname, amount, dealstage, pipeline, and closedate.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createDeal)
   .input(
     z.object({
       properties: dealPropertySchema,
@@ -70,6 +72,7 @@ export let getDeal = SlateTool.create(spec, {
   description: `Retrieve a deal from HubSpot CRM by ID. Optionally specify which properties and associations to include.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getDeal)
   .input(
     z.object({
       dealId: z.string().describe('HubSpot deal ID'),
@@ -109,6 +112,7 @@ export let updateDeal = SlateTool.create(spec, {
   description: `Update an existing deal's properties in HubSpot CRM. Use this to change deal stage, amount, close date, or any other deal property.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.updateDeal)
   .input(
     z.object({
       dealId: z.string().describe('HubSpot deal ID to update'),
@@ -139,6 +143,7 @@ export let deleteDeal = SlateTool.create(spec, {
   description: `Archive (soft delete) a deal in HubSpot CRM.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteDeal)
   .input(
     z.object({
       dealId: z.string().describe('HubSpot deal ID to delete')
@@ -166,6 +171,7 @@ export let listDeals = SlateTool.create(spec, {
   description: `List deals from HubSpot CRM with pagination support.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listDeals)
   .input(
     z.object({
       limit: z

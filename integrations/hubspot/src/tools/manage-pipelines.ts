@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -28,6 +29,7 @@ export let listPipelines = SlateTool.create(spec, {
   description: `List all pipelines for a given object type in HubSpot. Pipelines define the lifecycle stages for deals, tickets, or orders.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listPipelines)
   .input(
     z.object({
       objectType: z
@@ -71,6 +73,7 @@ export let getPipeline = SlateTool.create(spec, {
   description: `Retrieve a specific pipeline with its stages from HubSpot.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getPipeline)
   .input(
     z.object({
       objectType: z.enum(['deals', 'tickets', 'orders']).describe('Object type'),
@@ -107,6 +110,7 @@ export let createPipeline = SlateTool.create(spec, {
   description: `Create a new pipeline with stages in HubSpot for deals, tickets, or orders.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createPipeline)
   .input(
     z.object({
       objectType: z.enum(['deals', 'tickets', 'orders']).describe('Object type'),
@@ -160,6 +164,7 @@ export let deletePipeline = SlateTool.create(spec, {
   description: `Delete a pipeline from HubSpot. All objects in the pipeline must be moved to another pipeline first.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deletePipeline)
   .input(
     z.object({
       objectType: z.enum(['deals', 'tickets', 'orders']).describe('Object type'),

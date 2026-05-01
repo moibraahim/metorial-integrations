@@ -1,5 +1,7 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { missingRequiredFieldError } from '../lib/errors';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -12,6 +14,7 @@ export let managePins = SlateTool.create(spec, {
     readOnly: false
   }
 })
+  .scopes(slackActionScopes.pins)
   .input(
     z.object({
       action: z.enum(['pin', 'unpin', 'list']).describe('Pin action to perform'),
@@ -43,7 +46,7 @@ export let managePins = SlateTool.create(spec, {
     let { action, channelId, messageTs } = ctx.input;
 
     if (action === 'pin') {
-      if (!messageTs) throw new Error('messageTs is required for pin action');
+      if (!messageTs) throw missingRequiredFieldError('messageTs', 'pin action');
       await client.addPin({ channel: channelId, timestamp: messageTs });
       return {
         output: { channelId },
@@ -52,7 +55,7 @@ export let managePins = SlateTool.create(spec, {
     }
 
     if (action === 'unpin') {
-      if (!messageTs) throw new Error('messageTs is required for unpin action');
+      if (!messageTs) throw missingRequiredFieldError('messageTs', 'unpin action');
       await client.removePin({ channel: channelId, timestamp: messageTs });
       return {
         output: { channelId },

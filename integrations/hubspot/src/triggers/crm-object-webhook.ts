@@ -1,5 +1,6 @@
 import { SlateTrigger } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -30,6 +31,7 @@ export let crmObjectWebhook = SlateTrigger.create(spec, {
   description:
     'Receives HubSpot CRM webhooks (legacy subscription payloads) as JSON POST to the Slates webhook URL. Configure the target URL in your HubSpot developer app webhook settings. Parses `subscriptionType` and `objectId`, then loads the object via the CRM API. Complements polling.'
 })
+  .scopes(hubSpotActionScopes.crmObjectWebhook)
   .input(
     z.object({
       objectType: z

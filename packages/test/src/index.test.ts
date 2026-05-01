@@ -40,6 +40,7 @@ afterEach(async () => {
   delete process.env.SLATES_INTEGRATION;
   delete process.env.SLATES_PROFILE_ID;
   delete process.env.SLATES_STORE_PATH;
+  delete process.env.SLATES_STORE_ROOT_DIR;
   delete process.env.SLATES_TEST_CONTEXT_PATH;
   await Promise.all(tempDirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })));
 });
@@ -302,6 +303,66 @@ describe('@slates/test', () => {
     expect(context.profileId).toBe(profile.id);
     expect(context.profile?.target.type).toBe('local');
     expect(context.storePath).toBe(store.storePath);
+  });
+
+  it('loads only the selected auth method from the runtime context', async () => {
+    let cwd = await createTempDir();
+    let store = await openSlatesCliStore({
+      cwd,
+      scope: {
+        key: 'integrations/demo',
+        name: 'demo'
+      }
+    });
+    let profile = store.upsertProfile({
+      name: 'Demo',
+      target: {
+        type: 'local',
+        entry: './demo-slate.mjs',
+        exportName: 'provider'
+      }
+    });
+    store.upsertAuth(profile.id, {
+      authMethodId: 'oauth',
+      authMethodName: 'Bot OAuth',
+      authType: 'auth.oauth',
+      input: {},
+      output: {
+        token: 'bot-token'
+      },
+      scopes: ['chat:write']
+    });
+    store.upsertAuth(profile.id, {
+      authMethodId: 'user_oauth',
+      authMethodName: 'User OAuth',
+      authType: 'auth.oauth',
+      input: {},
+      output: {
+        token: 'user-token'
+      },
+      scopes: ['search:read']
+    });
+    await store.save();
+
+    let runtimeContextPath = path.join(cwd, 'runtime.json');
+    await writeFile(
+      runtimeContextPath,
+      JSON.stringify({
+        integration: 'integrations/demo',
+        profileId: profile.id,
+        authMethodId: 'user_oauth',
+        storePath: store.storePath,
+        cliDir: store.dirPath
+      }),
+      'utf-8'
+    );
+
+    process.env.SLATES_TEST_CONTEXT_PATH = runtimeContextPath;
+
+    let context = await loadSlatesRuntimeContext({ cwd });
+    expect(context.authMethodId).toBe('user_oauth');
+    expect(Object.keys(context.profile?.auth ?? {})).toEqual(['user_oauth']);
+    expect(context.profile?.auth.user_oauth?.output.token).toBe('user-token');
   });
 
   it('creates local slate clients and asserts provider contracts', async () => {

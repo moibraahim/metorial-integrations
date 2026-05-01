@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -23,6 +24,7 @@ export let createContact = SlateTool.create(spec, {
   description: `Create a new contact in HubSpot CRM. Provide contact properties such as email, firstname, lastname, phone, company, and any custom properties defined in your HubSpot account.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createContact)
   .input(
     z.object({
       properties: contactPropertySchema,
@@ -72,6 +74,7 @@ export let getContact = SlateTool.create(spec, {
   description: `Retrieve a contact from HubSpot CRM by ID. Optionally specify which properties to return and which associated objects to include.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getContact)
   .input(
     z.object({
       contactId: z.string().describe('HubSpot contact ID'),
@@ -111,6 +114,7 @@ export let updateContact = SlateTool.create(spec, {
   description: `Update an existing contact's properties in HubSpot CRM. Only the provided properties will be updated; other properties remain unchanged.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.updateContact)
   .input(
     z.object({
       contactId: z.string().describe('HubSpot contact ID to update'),
@@ -145,6 +149,7 @@ export let deleteContact = SlateTool.create(spec, {
   description: `Archive (soft delete) a contact in HubSpot CRM. The contact can be restored later from the recycling bin.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteContact)
   .input(
     z.object({
       contactId: z.string().describe('HubSpot contact ID to delete')
@@ -172,6 +177,7 @@ export let listContacts = SlateTool.create(spec, {
   description: `List contacts from HubSpot CRM with pagination support. Returns a page of contacts with their properties.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listContacts)
   .input(
     z.object({
       limit: z

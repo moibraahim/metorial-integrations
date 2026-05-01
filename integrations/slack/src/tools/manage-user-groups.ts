@@ -1,5 +1,7 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { missingRequiredFieldError } from '../lib/errors';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -27,6 +29,7 @@ export let manageUserGroups = SlateTool.create(spec, {
     readOnly: false
   }
 })
+  .scopes(slackActionScopes.userGroups)
   .input(
     z.object({
       action: z
@@ -78,7 +81,7 @@ export let manageUserGroups = SlateTool.create(spec, {
     });
 
     if (action === 'create') {
-      if (!ctx.input.name) throw new Error('name is required for create action');
+      if (!ctx.input.name) throw missingRequiredFieldError('name', 'create action');
       let group = await client.createUserGroup({
         name: ctx.input.name,
         handle: ctx.input.handle,
@@ -92,7 +95,9 @@ export let manageUserGroups = SlateTool.create(spec, {
     }
 
     if (action === 'update') {
-      if (!ctx.input.userGroupId) throw new Error('userGroupId is required for update action');
+      if (!ctx.input.userGroupId) {
+        throw missingRequiredFieldError('userGroupId', 'update action');
+      }
       let group = await client.updateUserGroup({
         usergroupId: ctx.input.userGroupId,
         name: ctx.input.name,
@@ -107,7 +112,9 @@ export let manageUserGroups = SlateTool.create(spec, {
     }
 
     if (action === 'enable') {
-      if (!ctx.input.userGroupId) throw new Error('userGroupId is required for enable action');
+      if (!ctx.input.userGroupId) {
+        throw missingRequiredFieldError('userGroupId', 'enable action');
+      }
       let group = await client.enableUserGroup(ctx.input.userGroupId);
       return {
         output: { userGroup: mapGroup(group) },
@@ -117,7 +124,7 @@ export let manageUserGroups = SlateTool.create(spec, {
 
     if (action === 'disable') {
       if (!ctx.input.userGroupId)
-        throw new Error('userGroupId is required for disable action');
+        throw missingRequiredFieldError('userGroupId', 'disable action');
       let group = await client.disableUserGroup(ctx.input.userGroupId);
       return {
         output: { userGroup: mapGroup(group) },
@@ -127,8 +134,8 @@ export let manageUserGroups = SlateTool.create(spec, {
 
     if (action === 'set_members') {
       if (!ctx.input.userGroupId)
-        throw new Error('userGroupId is required for set_members action');
-      if (!ctx.input.userIds) throw new Error('userIds is required for set_members action');
+        throw missingRequiredFieldError('userGroupId', 'set_members action');
+      if (!ctx.input.userIds) throw missingRequiredFieldError('userIds', 'set_members action');
       let group = await client.updateUserGroupMembers(
         ctx.input.userGroupId,
         ctx.input.userIds
@@ -141,7 +148,7 @@ export let manageUserGroups = SlateTool.create(spec, {
 
     if (action === 'list_members') {
       if (!ctx.input.userGroupId)
-        throw new Error('userGroupId is required for list_members action');
+        throw missingRequiredFieldError('userGroupId', 'list_members action');
       let members = await client.listUserGroupMembers(ctx.input.userGroupId);
       return {
         output: { members },
