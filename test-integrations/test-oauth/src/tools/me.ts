@@ -1,4 +1,4 @@
-import { SlateTool, createAxios } from 'slates';
+import { SlateTool, SlateError, createAxios } from 'slates';
 import { z } from 'zod';
 import { spec } from '../spec';
 
@@ -27,6 +27,8 @@ export let me = SlateTool.create(spec, {
   .handleInvocation(async ctx => {
     let response = await mockAxios.get('/userinfo', {
       headers: { Authorization: `Bearer ${ctx.auth.token}` }
+    }).catch(err => {
+      throw SlateError.fromAxios(err);
     });
 
     let data = response.data ?? {};
