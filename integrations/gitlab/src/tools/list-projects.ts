@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 

@@ -1,5 +1,25 @@
 import { createAxios } from 'slates';
 import type { AxiosInstance } from 'axios';
+import { ServiceError } from '@lowerdeck/error';
+import { linearApiError } from './errors';
+
+let extractErrorMessage = (error: unknown) => {
+  let responseData = (error as any)?.response?.data;
+  let errors = responseData?.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    return errors.map((item: any) => item?.message ?? 'Unknown error').join('; ');
+  }
+
+  if (typeof responseData?.message === 'string') {
+    return responseData.message;
+  }
+
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData.trim();
+  }
+
+  return error instanceof Error && error.message ? error.message : 'Unknown error';
+};
 
 export class LinearClient {
   private axios: AxiosInstance;
@@ -15,17 +35,25 @@ export class LinearClient {
   }
 
   async query<T = any>(queryString: string, variables?: Record<string, any>): Promise<T> {
-    let response = await this.axios.post('/graphql', {
-      query: queryString,
-      variables
-    });
+    try {
+      let response = await this.axios.post('/graphql', {
+        query: queryString,
+        variables
+      });
 
-    if (response.data?.errors?.length) {
-      let messages = response.data.errors.map((e: any) => e.message).join('; ');
-      throw new Error(`GraphQL error: ${messages}`);
+      if (response.data?.errors?.length) {
+        let messages = response.data.errors.map((e: any) => e.message).join('; ');
+        throw linearApiError(messages);
+      }
+
+      return response.data?.data;
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw linearApiError(extractErrorMessage(error));
     }
-
-    return response.data?.data;
   }
 
   // ─── Issues ───
@@ -174,8 +202,8 @@ export class LinearClient {
 
     let data = await this.query(
       `
-      query IssueSearch($query: String!, $first: Int, $after: String, $includeArchived: Boolean, $filter: IssueFilter) {
-        searchIssues(query: $query, first: $first, after: $after, includeArchived: $includeArchived, filter: $filter) {
+      query IssueSearch($term: String!, $first: Int, $after: String, $includeArchived: Boolean, $filter: IssueFilter) {
+        searchIssues(term: $term, first: $first, after: $after, includeArchived: $includeArchived, filter: $filter) {
           nodes {
             ${ISSUE_FIELDS}
           }
@@ -187,7 +215,7 @@ export class LinearClient {
       }
     `,
       {
-        query,
+        term: query,
         first: params?.first || 50,
         after: params?.after,
         includeArchived: params?.includeArchived,
@@ -338,15 +366,15 @@ export class LinearClient {
   async deleteCycle(cycleId: string) {
     let data = await this.query(
       `
-      mutation CycleDelete($id: String!) {
-        cycleDelete(id: $id) {
+      mutation CycleArchive($id: String!) {
+        cycleArchive(id: $id) {
           success
         }
       }
     `,
       { id: cycleId }
     );
-    return data.cycleDelete;
+    return data.cycleArchive;
   }
 
   async getCycle(cycleId: string) {
@@ -989,7 +1017,6 @@ let CYCLE_FIELDS = `
   endsAt
   completedAt
   progress
-  url
   createdAt
   updatedAt
   team {

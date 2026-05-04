@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -51,6 +52,7 @@ export let searchCrm = SlateTool.create(spec, {
   ],
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.searchCrm)
   .input(
     z.object({
       objectType: z

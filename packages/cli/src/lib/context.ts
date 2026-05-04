@@ -71,9 +71,16 @@ export let chooseProfile = async (d: {
   };
 };
 
-export let createClientContext = async (opts: { integration: string; profile?: string }) => {
+export let createClientContext = async (opts: {
+  integration: string;
+  profile?: string;
+  autoRefresh?: boolean;
+}) => {
   let { integration, store, profile } = await chooseProfile(opts);
-  let client = await createSlatesClientFromProfile(profile, { store });
+  let client = await createSlatesClientFromProfile(profile, {
+    store,
+    autoRefresh: opts.autoRefresh
+  });
   return { integration, store, profile, client };
 };
 

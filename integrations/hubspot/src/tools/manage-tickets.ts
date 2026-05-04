@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -23,6 +24,7 @@ export let createTicket = SlateTool.create(spec, {
   description: `Create a new support ticket in HubSpot. Provide ticket properties such as subject, content, pipeline stage, and priority.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createTicket)
   .input(
     z.object({
       properties: ticketPropertySchema,
@@ -70,6 +72,7 @@ export let getTicket = SlateTool.create(spec, {
   description: `Retrieve a support ticket from HubSpot by ID.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getTicket)
   .input(
     z.object({
       ticketId: z.string().describe('HubSpot ticket ID'),
@@ -109,6 +112,7 @@ export let updateTicket = SlateTool.create(spec, {
   description: `Update an existing ticket's properties in HubSpot. Use this to change ticket status, priority, assignment, or any other property.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.updateTicket)
   .input(
     z.object({
       ticketId: z.string().describe('HubSpot ticket ID to update'),
@@ -143,6 +147,7 @@ export let deleteTicket = SlateTool.create(spec, {
   description: `Archive (soft delete) a ticket in HubSpot.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteTicket)
   .input(
     z.object({
       ticketId: z.string().describe('HubSpot ticket ID to delete')
@@ -170,6 +175,7 @@ export let listTickets = SlateTool.create(spec, {
   description: `List support tickets from HubSpot with pagination support.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listTickets)
   .input(
     z.object({
       limit: z

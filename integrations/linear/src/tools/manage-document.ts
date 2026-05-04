@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -63,7 +64,7 @@ export let createDocumentTool = SlateTool.create(spec, {
     let result = await client.createDocument(input);
 
     if (!result.success) {
-      throw new Error('Failed to create document');
+      throw linearServiceError('Failed to create document');
     }
 
     return {
@@ -109,7 +110,7 @@ export let updateDocumentTool = SlateTool.create(spec, {
     let result = await client.updateDocument(ctx.input.documentId, input);
 
     if (!result.success) {
-      throw new Error('Failed to update document');
+      throw linearServiceError('Failed to update document');
     }
 
     return {

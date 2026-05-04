@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -62,7 +63,7 @@ export let createLabelTool = SlateTool.create(spec, {
     let result = await client.createLabel(input);
 
     if (!result.success) {
-      throw new Error('Failed to create label');
+      throw linearServiceError('Failed to create label');
     }
 
     return {
@@ -100,7 +101,7 @@ export let updateLabelTool = SlateTool.create(spec, {
     let result = await client.updateLabel(ctx.input.labelId, input);
 
     if (!result.success) {
-      throw new Error('Failed to update label');
+      throw linearServiceError('Failed to update label');
     }
 
     return {

@@ -1,5 +1,5 @@
 import { SlateTool } from 'slates';
-import { GitLabClient } from '../lib/client';
+import { createClient, resolveProjectId, gitLabServiceError } from '../lib/helpers';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -14,7 +14,10 @@ export let getPipelineJobs = SlateTool.create(spec, {
 })
   .input(
     z.object({
-      projectId: z.string().describe('Project ID or URL-encoded path'),
+      projectId: z
+        .string()
+        .optional()
+        .describe('Project ID or URL-encoded path. Falls back to config default.'),
       pipelineId: z.number().optional().describe('Pipeline ID to list jobs for'),
       jobId: z.number().optional().describe('Specific job ID to get details or logs for'),
       action: z
@@ -62,16 +65,15 @@ export let getPipelineJobs = SlateTool.create(spec, {
     })
   )
   .handleInvocation(async ctx => {
-    let client = new GitLabClient({
-      token: ctx.auth.token,
-      instanceUrl: ctx.auth.instanceUrl
-    });
+    let client = createClient(ctx.auth, ctx.config);
+    let projectId = resolveProjectId(ctx.input.projectId, ctx.config.projectId);
 
     let action = ctx.input.action || (ctx.input.pipelineId ? 'list' : 'get');
 
     if (action === 'list') {
-      if (!ctx.input.pipelineId) throw new Error('Pipeline ID is required to list jobs');
-      let jobs = await client.listPipelineJobs(ctx.input.projectId, ctx.input.pipelineId, {
+      if (!ctx.input.pipelineId)
+        throw gitLabServiceError('Pipeline ID is required to list jobs');
+      let jobs = await client.listPipelineJobs(projectId, ctx.input.pipelineId, {
         perPage: ctx.input.perPage,
         page: ctx.input.page
       });
@@ -95,10 +97,10 @@ export let getPipelineJobs = SlateTool.create(spec, {
     }
 
     if (!ctx.input.jobId)
-      throw new Error('Job ID is required for get/log/retry/cancel actions');
+      throw gitLabServiceError('Job ID is required for get/log/retry/cancel actions');
 
     if (action === 'log') {
-      let log = await client.getJobLog(ctx.input.projectId, ctx.input.jobId);
+      let log = await client.getJobLog(projectId, ctx.input.jobId);
       return {
         output: { log },
         message: `Retrieved log for job **#${ctx.input.jobId}** (${log.length} characters)`
@@ -107,11 +109,11 @@ export let getPipelineJobs = SlateTool.create(spec, {
 
     let job: any;
     if (action === 'retry') {
-      job = await client.retryJob(ctx.input.projectId, ctx.input.jobId);
+      job = await client.retryJob(projectId, ctx.input.jobId);
     } else if (action === 'cancel') {
-      job = await client.cancelJob(ctx.input.projectId, ctx.input.jobId);
+      job = await client.cancelJob(projectId, ctx.input.jobId);
     } else {
-      job = await client.getJob(ctx.input.projectId, ctx.input.jobId);
+      job = await client.getJob(projectId, ctx.input.jobId);
     }
 
     let actionVerb =

@@ -1,5 +1,6 @@
 import { SlateTrigger, SlateDefaultPollingIntervalSeconds } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ export let newFile = SlateTrigger.create(spec, {
   description:
     '[Polling fallback] Triggers when a new file is uploaded or shared in the workspace. Polls the files list for newly created files.'
 })
+  .scopes(slackActionScopes.fileEvents)
   .input(
     z.object({
       fileId: z.string().describe('File ID'),

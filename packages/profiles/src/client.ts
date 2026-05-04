@@ -43,7 +43,7 @@ let loadSlateFromProfile = async (
 
 export let createSlatesClientFromProfile = async (
   profile: SlatesProfileRecord,
-  opts: { cwd?: string; store?: SlatesCliStore } = {}
+  opts: { cwd?: string; store?: SlatesCliStore; autoRefresh?: boolean } = {}
 ) => {
   let firstAuth = Object.values(profile.auth)[0];
   let slate = await loadSlateFromProfile(profile, opts);
@@ -61,7 +61,7 @@ export let createSlatesClientFromProfile = async (
     }
   });
 
-  if (firstAuth) {
+  if (firstAuth && opts.autoRefresh !== false) {
     attachAutoRefresh(client, profile, firstAuth, opts.store);
   }
 

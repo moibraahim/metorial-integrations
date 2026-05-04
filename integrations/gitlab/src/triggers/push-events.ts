@@ -1,5 +1,6 @@
 import { SlateTrigger } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -70,9 +71,11 @@ export let pushEvents = SlateTrigger.create(spec, {
 
       // We need a project ID to register the webhook - extract from config or state
       // The webhook will be registered per-project
-      let projectId = (ctx as any).state?.projectId;
+      let projectId = (ctx as any).state?.projectId || (ctx as any).config?.projectId;
       if (!projectId) {
-        throw new Error('A project ID must be configured to register push event webhooks');
+        throw gitLabServiceError(
+          'A project ID must be configured to register push event webhooks'
+        );
       }
 
       let webhook = await client.createProjectWebhook(projectId, {
