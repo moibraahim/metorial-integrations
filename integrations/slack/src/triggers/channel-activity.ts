@@ -1,5 +1,6 @@
 import { SlateTrigger, SlateDefaultPollingIntervalSeconds } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ export let channelActivity = SlateTrigger.create(spec, {
   description:
     '[Polling fallback] Triggers when channels are created, archived, unarchived, or their membership changes. Polls the conversations list to detect changes.'
 })
+  .scopes(slackActionScopes.channelActivity)
   .input(
     z.object({
       eventType: z

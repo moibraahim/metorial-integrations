@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -46,7 +47,7 @@ export let manageFile = SlateTool.create(spec, {
 
     if (ctx.input.action === 'create_or_update') {
       if (!ctx.input.content && ctx.input.content !== '')
-        throw new Error('Content is required for create/update');
+        throw gitLabServiceError('Content is required for create/update');
       await client.createOrUpdateFile(ctx.input.projectId, ctx.input.filePath, {
         branch: ctx.input.branch,
         content: ctx.input.content!,

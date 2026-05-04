@@ -1,5 +1,6 @@
 import { SlateTrigger, SlateDefaultPollingIntervalSeconds } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ export let userChange = SlateTrigger.create(spec, {
   description:
     '[Polling fallback] Triggers when a user joins the workspace or when user profile/status changes. Polls the user list to detect new members and profile updates.'
 })
+  .scopes(slackActionScopes.userChange)
   .input(
     z.object({
       eventType: z.enum(['joined', 'updated']).describe('Type of user event'),

@@ -1,4 +1,5 @@
-import { SlateTool } from 'slates';
+import { ServiceError, badRequestError } from '@lowerdeck/error';
+import { SlateTool, type SlateActionScopes } from 'slates';
 import { z } from 'zod';
 
 type SlackClientCtor = new (token: string) => {
@@ -24,6 +25,20 @@ type SlackClientCtor = new (token: string) => {
 type SlackToolFactoryDeps = {
   spec: any;
   SlackClient: SlackClientCtor;
+  scopes?: {
+    getConversationInfo?: SlateActionScopes;
+    manageScheduledMessages?: SlateActionScopes;
+    openConversation?: SlateActionScopes;
+  };
+};
+
+let applyScopes = (builder: any, scopes?: SlateActionScopes) =>
+  scopes ? builder.scopes(scopes) : builder;
+
+let missingRequiredFieldError = (field: string, context?: string) => {
+  let message = `${field} is required${context ? ` for ${context}` : ''}`;
+
+  return new ServiceError(badRequestError({ message }));
 };
 
 let conversationInfoOutputSchema = z.object({
@@ -81,16 +96,23 @@ let openConversationOutputSchema = z.object({
   noOp: z.boolean().optional().describe('Whether Slack reported no action was needed')
 });
 
-export let createGetConversationInfoTool = ({ spec, SlackClient }: SlackToolFactoryDeps) =>
-  SlateTool.create(spec, {
-    name: 'Get Conversation Info',
-    key: 'get_conversation_info',
-    description: `Retrieve stable metadata for a Slack conversation, including channel type, membership, topic, purpose, member count, and timestamps.`,
-    tags: {
-      destructive: false,
-      readOnly: true
-    }
-  })
+export let createGetConversationInfoTool = ({
+  spec,
+  SlackClient,
+  scopes
+}: SlackToolFactoryDeps) =>
+  applyScopes(
+    SlateTool.create(spec, {
+      name: 'Get Conversation Info',
+      key: 'get_conversation_info',
+      description: `Retrieve stable metadata for a Slack conversation, including channel type, membership, topic, purpose, member count, and timestamps.`,
+      tags: {
+        destructive: false,
+        readOnly: true
+      }
+    }),
+    scopes?.getConversationInfo
+  )
     .input(
       z.object({
         channelId: z.string().describe('Slack conversation, channel, DM, or group DM ID')
@@ -132,20 +154,27 @@ export let createGetConversationInfoTool = ({ spec, SlackClient }: SlackToolFact
     })
     .build();
 
-export let createManageScheduledMessagesTool = ({ spec, SlackClient }: SlackToolFactoryDeps) =>
-  SlateTool.create(spec, {
-    name: 'Manage Scheduled Messages',
-    key: 'manage_scheduled_messages',
-    description: `List or delete Slack messages that are scheduled to be sent later.`,
-    instructions: [
-      'To **list**, optionally provide channelId, oldest, latest, limit, or cursor.',
-      'To **delete**, provide channelId and scheduledMessageId.'
-    ],
-    tags: {
-      destructive: true,
-      readOnly: false
-    }
-  })
+export let createManageScheduledMessagesTool = ({
+  spec,
+  SlackClient,
+  scopes
+}: SlackToolFactoryDeps) =>
+  applyScopes(
+    SlateTool.create(spec, {
+      name: 'Manage Scheduled Messages',
+      key: 'manage_scheduled_messages',
+      description: `List or delete Slack messages that are scheduled to be sent later.`,
+      instructions: [
+        'To **list**, optionally provide channelId, oldest, latest, limit, or cursor.',
+        'To **delete**, provide channelId and scheduledMessageId.'
+      ],
+      tags: {
+        destructive: true,
+        readOnly: false
+      }
+    }),
+    scopes?.manageScheduledMessages
+  )
     .input(
       z.object({
         action: z.enum(['list', 'delete']).describe('Scheduled message action to perform'),
@@ -186,10 +215,10 @@ export let createManageScheduledMessagesTool = ({ spec, SlackClient }: SlackTool
 
       if (ctx.input.action === 'delete') {
         if (!ctx.input.channelId) {
-          throw new Error('channelId is required for delete action');
+          throw missingRequiredFieldError('channelId', 'delete action');
         }
         if (!ctx.input.scheduledMessageId) {
-          throw new Error('scheduledMessageId is required for delete action');
+          throw missingRequiredFieldError('scheduledMessageId', 'delete action');
         }
 
         await client.deleteScheduledMessage({
@@ -232,17 +261,24 @@ export let createManageScheduledMessagesTool = ({ spec, SlackClient }: SlackTool
     })
     .build();
 
-export let createOpenConversationTool = ({ spec, SlackClient }: SlackToolFactoryDeps) =>
-  SlateTool.create(spec, {
-    name: 'Open Conversation',
-    key: 'open_conversation',
-    description: `Open or resume a Slack direct message or group direct message with one or more users.`,
-    constraints: ['Provide 1 to 8 Slack user IDs.'],
-    tags: {
-      destructive: false,
-      readOnly: false
-    }
-  })
+export let createOpenConversationTool = ({
+  spec,
+  SlackClient,
+  scopes
+}: SlackToolFactoryDeps) =>
+  applyScopes(
+    SlateTool.create(spec, {
+      name: 'Open Conversation',
+      key: 'open_conversation',
+      description: `Open or resume a Slack direct message or group direct message with one or more users.`,
+      constraints: ['Provide 1 to 8 Slack user IDs.'],
+      tags: {
+        destructive: false,
+        readOnly: false
+      }
+    }),
+    scopes?.openConversation
+  )
     .input(
       z.object({
         userIds: z

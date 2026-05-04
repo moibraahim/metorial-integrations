@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -66,7 +67,8 @@ export let manageProject = SlateTool.create(spec, {
 
     switch (ctx.input.action) {
       case 'create': {
-        if (!ctx.input.name) throw new Error('Project name is required for create action');
+        if (!ctx.input.name)
+          throw gitLabServiceError('Project name is required for create action');
         project = await client.createProject({
           name: ctx.input.name,
           path: ctx.input.path,
@@ -79,7 +81,8 @@ export let manageProject = SlateTool.create(spec, {
         break;
       }
       case 'update': {
-        if (!ctx.input.projectId) throw new Error('Project ID is required for update action');
+        if (!ctx.input.projectId)
+          throw gitLabServiceError('Project ID is required for update action');
         project = await client.updateProject(ctx.input.projectId, {
           name: ctx.input.name,
           description: ctx.input.description,
@@ -90,7 +93,8 @@ export let manageProject = SlateTool.create(spec, {
         break;
       }
       case 'delete': {
-        if (!ctx.input.projectId) throw new Error('Project ID is required for delete action');
+        if (!ctx.input.projectId)
+          throw gitLabServiceError('Project ID is required for delete action');
         let existing = await client.getProject(ctx.input.projectId);
         await client.deleteProject(ctx.input.projectId);
         return {
@@ -106,7 +110,8 @@ export let manageProject = SlateTool.create(spec, {
         };
       }
       case 'fork': {
-        if (!ctx.input.projectId) throw new Error('Project ID is required for fork action');
+        if (!ctx.input.projectId)
+          throw gitLabServiceError('Project ID is required for fork action');
         project = await client.forkProject(ctx.input.projectId, {
           namespace: undefined,
           namespaceId: ctx.input.namespaceId,

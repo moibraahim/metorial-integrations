@@ -25,23 +25,29 @@ export let me = SlateTool.create(spec, {
     })
   )
   .handleInvocation(async ctx => {
-    let response = await mockAxios.get('/userinfo', {
-      headers: { Authorization: `Bearer ${ctx.auth.token}` }
-    });
+    try {
+      let response = await mockAxios.get('/userinfo', {
+        headers: { Authorization: `Bearer ${ctx.auth.token}` }
+      });
 
-    let data = response.data ?? {};
+      let data = response.data ?? {};
 
-    return {
-      output: {
-        sub: typeof data.sub === 'string' ? data.sub : undefined,
-        email: typeof data.email === 'string' ? data.email : undefined,
-        name: typeof data.name === 'string' ? data.name : undefined,
-        raw: data
-      },
-      message:
-        typeof data.email === 'string'
-          ? `Signed in as **${data.name ?? data.sub ?? data.email}** (${data.email}).`
-          : `Signed in as **${data.name ?? data.sub ?? 'unknown'}**.`
-    };
+      return {
+        output: {
+          sub: typeof data.sub === 'string' ? data.sub : undefined,
+          email: typeof data.email === 'string' ? data.email : undefined,
+          name: typeof data.name === 'string' ? data.name : undefined,
+          raw: data
+        },
+        message:
+          typeof data.email === 'string'
+            ? `Signed in as **${data.name ?? data.sub ?? data.email}** (${data.email}).`
+            : `Signed in as **${data.name ?? data.sub ?? 'unknown'}**.`
+      };
+    } catch (error: any) {
+      throw new Error(
+        `Failed to fetch user info from OAuth provider: ${error.message ?? 'Unknown error'}`
+      );
+    }
   })
   .build();

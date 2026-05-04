@@ -1,5 +1,5 @@
 import { SlateTool } from 'slates';
-import { GitLabClient } from '../lib/client';
+import { createClient, resolveProjectId, gitLabServiceError } from '../lib/helpers';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -17,7 +17,10 @@ export let managePipeline = SlateTool.create(spec, {
       action: z
         .enum(['create', 'retry', 'cancel'])
         .describe('Operation: create a new pipeline, or retry/cancel an existing one'),
-      projectId: z.string().describe('Project ID or URL-encoded path'),
+      projectId: z
+        .string()
+        .optional()
+        .describe('Project ID or URL-encoded path. Falls back to config default.'),
       pipelineId: z.number().optional().describe('Pipeline ID (required for retry/cancel)'),
       ref: z
         .string()
@@ -48,32 +51,28 @@ export let managePipeline = SlateTool.create(spec, {
     })
   )
   .handleInvocation(async ctx => {
-    let client = new GitLabClient({
-      token: ctx.auth.token,
-      instanceUrl: ctx.auth.instanceUrl
-    });
+    let client = createClient(ctx.auth, ctx.config);
+    let projectId = resolveProjectId(ctx.input.projectId, ctx.config.projectId);
 
     let pipeline: any;
 
     switch (ctx.input.action) {
       case 'create': {
         if (!ctx.input.ref)
-          throw new Error('Ref (branch/tag) is required to create a pipeline');
-        pipeline = await client.createPipeline(
-          ctx.input.projectId,
-          ctx.input.ref,
-          ctx.input.variables
-        );
+          throw gitLabServiceError('Ref (branch/tag) is required to create a pipeline');
+        pipeline = await client.createPipeline(projectId, ctx.input.ref, ctx.input.variables);
         break;
       }
       case 'retry': {
-        if (!ctx.input.pipelineId) throw new Error('Pipeline ID is required for retry');
-        pipeline = await client.retryPipeline(ctx.input.projectId, ctx.input.pipelineId);
+        if (!ctx.input.pipelineId)
+          throw gitLabServiceError('Pipeline ID is required for retry');
+        pipeline = await client.retryPipeline(projectId, ctx.input.pipelineId);
         break;
       }
       case 'cancel': {
-        if (!ctx.input.pipelineId) throw new Error('Pipeline ID is required for cancel');
-        pipeline = await client.cancelPipeline(ctx.input.projectId, ctx.input.pipelineId);
+        if (!ctx.input.pipelineId)
+          throw gitLabServiceError('Pipeline ID is required for cancel');
+        pipeline = await client.cancelPipeline(projectId, ctx.input.pipelineId);
         break;
       }
     }

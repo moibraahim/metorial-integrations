@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -105,7 +106,7 @@ export let addComment = SlateTool.create(spec, {
       };
     }
 
-    if (!ctx.input.body) throw new Error('Comment body is required');
+    if (!ctx.input.body) throw gitLabServiceError('Comment body is required');
 
     let note: any;
     if (ctx.input.targetType === 'issue') {

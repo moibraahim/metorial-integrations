@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -56,7 +57,7 @@ export let manageIssue = SlateTool.create(spec, {
 
     switch (ctx.input.action) {
       case 'create': {
-        if (!ctx.input.title) throw new Error('Title is required for create action');
+        if (!ctx.input.title) throw gitLabServiceError('Title is required for create action');
         issue = await client.createIssue(ctx.input.projectId, {
           title: ctx.input.title,
           description: ctx.input.description,
@@ -70,7 +71,8 @@ export let manageIssue = SlateTool.create(spec, {
         break;
       }
       case 'update': {
-        if (!ctx.input.issueIid) throw new Error('Issue IID is required for update action');
+        if (!ctx.input.issueIid)
+          throw gitLabServiceError('Issue IID is required for update action');
         issue = await client.updateIssue(ctx.input.projectId, ctx.input.issueIid, {
           title: ctx.input.title,
           description: ctx.input.description,
@@ -85,7 +87,8 @@ export let manageIssue = SlateTool.create(spec, {
         break;
       }
       case 'delete': {
-        if (!ctx.input.issueIid) throw new Error('Issue IID is required for delete action');
+        if (!ctx.input.issueIid)
+          throw gitLabServiceError('Issue IID is required for delete action');
         let existing = await client.getIssue(ctx.input.projectId, ctx.input.issueIid);
         await client.deleteIssue(ctx.input.projectId, ctx.input.issueIid);
         return {

@@ -1,5 +1,6 @@
 import { createAxios } from 'slates';
 import type { AxiosInstance } from 'axios';
+import { hubSpotApiError } from './errors';
 
 export class HubSpotClient {
   private http: AxiosInstance;
@@ -12,6 +13,11 @@ export class HubSpotClient {
         'Content-Type': 'application/json'
       }
     });
+
+    this.http.interceptors.response.use(
+      response => response,
+      error => Promise.reject(hubSpotApiError(error))
+    );
   }
 
   // ── CRM Objects (generic) ──

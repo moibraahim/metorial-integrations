@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -34,6 +35,7 @@ export let listProperties = SlateTool.create(spec, {
   description: `List all properties defined for a CRM object type in HubSpot. Returns both default and custom properties with their configurations.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listProperties)
   .input(
     z.object({
       objectType: z
@@ -84,6 +86,7 @@ export let createProperty = SlateTool.create(spec, {
   ],
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createProperty)
   .input(
     z.object({
       objectType: z

@@ -1,11 +1,13 @@
 import { SlateAuth, createAxios } from 'slates';
 import { z } from 'zod';
+import { gitLabApiError, gitLabServiceError } from './lib/errors';
 
 let outputSchema = z.object({
   token: z.string(),
   refreshToken: z.string().optional(),
   expiresAt: z.string().optional(),
-  instanceUrl: z.string()
+  instanceUrl: z.string(),
+  redirectUri: z.string().optional()
 });
 
 type AuthOutput = z.infer<typeof outputSchema>;
@@ -126,17 +128,22 @@ function createGitlabOauth(opts: {
 
       let oauthAxios = createAxios({ baseURL: baseUrl });
 
-      let response = await oauthAxios.post(
-        '/oauth/token',
-        new URLSearchParams({
-          client_id: ctx.clientId,
-          client_secret: ctx.clientSecret,
-          code: ctx.code,
-          grant_type: 'authorization_code',
-          redirect_uri: ctx.redirectUri
-        }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
+      let response;
+      try {
+        response = await oauthAxios.post(
+          '/oauth/token',
+          new URLSearchParams({
+            client_id: ctx.clientId,
+            client_secret: ctx.clientSecret,
+            code: ctx.code,
+            grant_type: 'authorization_code',
+            redirect_uri: ctx.redirectUri
+          }).toString(),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
+      } catch (error) {
+        throw gitLabApiError(error, 'OAuth token exchange');
+      }
 
       let data = response.data;
       let expiresAt = data.expires_in
@@ -148,14 +155,15 @@ function createGitlabOauth(opts: {
           token: data.access_token,
           refreshToken: data.refresh_token,
           expiresAt,
-          instanceUrl: baseUrl
+          instanceUrl: baseUrl,
+          redirectUri: ctx.redirectUri
         }
       };
     },
 
     handleTokenRefresh: async (ctx: any) => {
       if (!ctx.output.refreshToken) {
-        throw new Error('No refresh token available');
+        throw gitLabServiceError('No refresh token available');
       }
 
       let baseUrl = ctx.output.instanceUrl
@@ -164,16 +172,24 @@ function createGitlabOauth(opts: {
 
       let oauthAxios = createAxios({ baseURL: baseUrl });
 
-      let response = await oauthAxios.post(
-        '/oauth/token',
-        new URLSearchParams({
-          client_id: ctx.clientId,
-          client_secret: ctx.clientSecret,
-          refresh_token: ctx.output.refreshToken,
-          grant_type: 'refresh_token'
-        }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
+      let params = new URLSearchParams({
+        client_id: ctx.clientId,
+        client_secret: ctx.clientSecret,
+        refresh_token: ctx.output.refreshToken,
+        grant_type: 'refresh_token'
+      });
+      if (ctx.output.redirectUri) {
+        params.set('redirect_uri', ctx.output.redirectUri);
+      }
+
+      let response;
+      try {
+        response = await oauthAxios.post('/oauth/token', params.toString(), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+      } catch (error) {
+        throw gitLabApiError(error, 'OAuth token refresh');
+      }
 
       let data = response.data;
       let expiresAt = data.expires_in
@@ -185,7 +201,8 @@ function createGitlabOauth(opts: {
           token: data.access_token,
           refreshToken: data.refresh_token || ctx.output.refreshToken,
           expiresAt,
-          instanceUrl: baseUrl
+          instanceUrl: baseUrl,
+          redirectUri: ctx.output.redirectUri
         }
       };
     },
@@ -193,9 +210,14 @@ function createGitlabOauth(opts: {
     getProfile: async (ctx: { output: AuthOutput; input: any; scopes: string[] }) => {
       let baseUrl = normalizeBaseUrl(ctx.output.instanceUrl);
       let apiAxios = createAxios({ baseURL: `${baseUrl}/api/v4` });
-      let response = await apiAxios.get('/user', {
-        headers: { Authorization: `Bearer ${ctx.output.token}` }
-      });
+      let response;
+      try {
+        response = await apiAxios.get('/user', {
+          headers: { Authorization: `Bearer ${ctx.output.token}` }
+        });
+      } catch (error) {
+        throw gitLabApiError(error, 'get OAuth profile');
+      }
       let data = response.data;
       return {
         profile: {
@@ -248,9 +270,14 @@ function createGitlabPat(opts: {
     getProfile: async (ctx: { output: AuthOutput; input: any }) => {
       let baseUrl = normalizeBaseUrl(ctx.output.instanceUrl);
       let apiAxios = createAxios({ baseURL: `${baseUrl}/api/v4` });
-      let response = await apiAxios.get('/user', {
-        headers: { 'PRIVATE-TOKEN': ctx.output.token }
-      });
+      let response;
+      try {
+        response = await apiAxios.get('/user', {
+          headers: { 'PRIVATE-TOKEN': ctx.output.token }
+        });
+      } catch (error) {
+        throw gitLabApiError(error, 'get token profile');
+      }
       let data = response.data;
       return {
         profile: {

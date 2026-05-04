@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -87,7 +88,7 @@ export let createProjectTool = SlateTool.create(spec, {
     let result = await client.createProject(input);
 
     if (!result.success) {
-      throw new Error('Failed to create project');
+      throw linearServiceError('Failed to create project');
     }
 
     return {
@@ -142,7 +143,7 @@ export let updateProjectTool = SlateTool.create(spec, {
     let result = await client.updateProject(ctx.input.projectId, input);
 
     if (!result.success) {
-      throw new Error('Failed to update project');
+      throw linearServiceError('Failed to update project');
     }
 
     return {

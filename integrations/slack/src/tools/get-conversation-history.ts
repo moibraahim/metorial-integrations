@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -29,6 +30,7 @@ export let getConversationHistory = SlateTool.create(spec, {
     readOnly: true
   }
 })
+  .scopes(slackActionScopes.conversationHistory)
   .input(
     z.object({
       channelId: z.string().describe('Channel, DM, or group DM ID'),

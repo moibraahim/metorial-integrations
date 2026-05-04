@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -97,7 +98,7 @@ export let createIssueTool = SlateTool.create(spec, {
     let result = await client.createIssue(input);
 
     if (!result.success) {
-      throw new Error('Failed to create issue');
+      throw linearServiceError('Failed to create issue');
     }
 
     let issue = result.issue;

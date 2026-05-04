@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { SlateAuth, createAxios } from 'slates';
 import { z } from 'zod';
+import { salesforceOAuthError, salesforceServiceError } from './lib/errors';
 
 let generateCodeVerifier = () => randomBytes(32).toString('base64url');
 
@@ -128,23 +129,30 @@ export let auth = SlateAuth.create()
       let codeVerifier = ctx.callbackState.codeVerifier as string | undefined;
 
       if (!codeVerifier) {
-        throw new Error('Missing Salesforce PKCE code verifier for OAuth callback');
+        throw salesforceServiceError(
+          'Missing Salesforce PKCE code verifier for OAuth callback'
+        );
       }
 
-      let response = await http.post(
-        '/services/oauth2/token',
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          code: ctx.code,
-          client_id: ctx.clientId,
-          client_secret: ctx.clientSecret,
-          redirect_uri: redirectUri,
-          code_verifier: codeVerifier
-        }).toString(),
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        }
-      );
+      let response;
+      try {
+        response = await http.post(
+          '/services/oauth2/token',
+          new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: ctx.code,
+            client_id: ctx.clientId,
+            client_secret: ctx.clientSecret,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
+          }).toString(),
+          {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+          }
+        );
+      } catch (error) {
+        throw salesforceOAuthError('authorization code exchange', error);
+      }
 
       let data = response.data;
 
@@ -163,31 +171,38 @@ export let auth = SlateAuth.create()
 
     handleTokenRefresh: async ctx => {
       if (!ctx.output.refreshToken) {
-        throw new Error('No refresh token available');
+        throw salesforceServiceError(
+          'No Salesforce refresh token available. Re-authorize with the refresh_token scope.'
+        );
       }
 
       let baseUrl = getLoginUrl(ctx.input.environment, ctx.input.customDomain);
       let http = createAxios({ baseURL: baseUrl });
 
-      let response = await http.post(
-        '/services/oauth2/token',
-        new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: ctx.output.refreshToken,
-          client_id: ctx.clientId,
-          client_secret: ctx.clientSecret
-        }).toString(),
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        }
-      );
+      let response;
+      try {
+        response = await http.post(
+          '/services/oauth2/token',
+          new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: ctx.output.refreshToken,
+            client_id: ctx.clientId,
+            client_secret: ctx.clientSecret
+          }).toString(),
+          {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+          }
+        );
+      } catch (error) {
+        throw salesforceOAuthError('token refresh', error);
+      }
 
       let data = response.data;
 
       return {
         output: {
           token: data.access_token,
-          refreshToken: ctx.output.refreshToken,
+          refreshToken: data.refresh_token ?? ctx.output.refreshToken,
           instanceUrl: data.instance_url || ctx.output.instanceUrl,
           expiresAt: data.issued_at
             ? new Date(parseInt(data.issued_at) + 7200 * 1000).toISOString()

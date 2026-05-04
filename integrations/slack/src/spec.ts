@@ -4,7 +4,7 @@ import { config } from './config';
 
 export let spec = SlateSpecification.create({
   key: 'slack',
-  name: 'Slack (Bot)',
+  name: 'Slack',
   description: undefined,
   metadata: {},
   config,

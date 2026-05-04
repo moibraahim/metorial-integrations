@@ -1,5 +1,7 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { missingRequiredFieldError } from '../lib/errors';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -17,6 +19,7 @@ export let sendMessage = SlateTool.create(spec, {
     readOnly: false
   }
 })
+  .scopes(slackActionScopes.chatWrite)
   .input(
     z.object({
       channelId: z.string().describe('Channel, DM, or group DM ID to send the message to'),
@@ -56,7 +59,7 @@ export let sendMessage = SlateTool.create(spec, {
 
     if (ctx.input.ephemeral) {
       if (!ctx.input.targetUserId) {
-        throw new Error('targetUserId is required for ephemeral messages');
+        throw missingRequiredFieldError('targetUserId', 'ephemeral messages');
       }
       let messageTs = await client.postEphemeral({
         channel: ctx.input.channelId,

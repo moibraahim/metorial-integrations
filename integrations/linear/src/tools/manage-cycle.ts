@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -12,7 +13,7 @@ let cycleOutputSchema = z.object({
   endsAt: z.string().describe('Cycle end date'),
   completedAt: z.string().nullable().describe('Completion timestamp'),
   progress: z.number().describe('Cycle progress as decimal (0-1)'),
-  url: z.string().describe('URL to the cycle in Linear'),
+  url: z.string().nullable().describe('URL to the cycle in Linear when available'),
   teamId: z.string().describe('Team ID'),
   teamName: z.string().describe('Team name'),
   createdAt: z.string(),
@@ -28,7 +29,7 @@ let mapCycleToOutput = (cycle: any) => ({
   endsAt: cycle.endsAt,
   completedAt: cycle.completedAt || null,
   progress: cycle.progress ?? 0,
-  url: cycle.url,
+  url: cycle.url || null,
   teamId: cycle.team?.id || '',
   teamName: cycle.team?.name || '',
   createdAt: cycle.createdAt,
@@ -68,7 +69,7 @@ export let createCycleTool = SlateTool.create(spec, {
     let result = await client.createCycle(input);
 
     if (!result.success) {
-      throw new Error('Failed to create cycle');
+      throw linearServiceError('Failed to create cycle');
     }
 
     return {
@@ -108,7 +109,7 @@ export let updateCycleTool = SlateTool.create(spec, {
     let result = await client.updateCycle(ctx.input.cycleId, input);
 
     if (!result.success) {
-      throw new Error('Failed to update cycle');
+      throw linearServiceError('Failed to update cycle');
     }
 
     return {

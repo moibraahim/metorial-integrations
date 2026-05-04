@@ -1,5 +1,6 @@
 import { SlateTrigger, SlateDefaultPollingIntervalSeconds } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ export let crmObjectChanges = SlateTrigger.create(spec, {
   description:
     '[Polling fallback] Triggers when CRM objects (contacts, companies, deals, tickets) are created or modified in HubSpot. Polls for recently modified records. Prefer CRM Object Changes (Webhook) when HubSpot app webhooks are configured.'
 })
+  .scopes(hubSpotActionScopes.crmObjectChanges)
   .input(
     z.object({
       objectType: z

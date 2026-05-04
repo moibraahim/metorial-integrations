@@ -1,12 +1,12 @@
 import { SlateTool } from 'slates';
-import { GitLabClient } from '../lib/client';
+import { createClient, resolveProjectId } from '../lib/helpers';
 import { spec } from '../spec';
 import { z } from 'zod';
 
 export let listPipelines = SlateTool.create(spec, {
   name: 'List Pipelines',
   key: 'list_pipelines',
-  description: `List CI/CD pipelines for a project. Filter by status, ref (branch/tag), SHA, or source. Useful for monitoring build and deployment status.`,
+  description: `List CI/CD pipelines for a project. Filter by status, ref (branch/tag), SHA, source, or pipeline name. Useful for monitoring build and deployment status.`,
   tags: {
     destructive: false,
     readOnly: true
@@ -14,7 +14,10 @@ export let listPipelines = SlateTool.create(spec, {
 })
   .input(
     z.object({
-      projectId: z.string().describe('Project ID or URL-encoded path'),
+      projectId: z
+        .string()
+        .optional()
+        .describe('Project ID or URL-encoded path. Falls back to config default.'),
       status: z
         .enum([
           'created',
@@ -33,10 +36,13 @@ export let listPipelines = SlateTool.create(spec, {
         .describe('Filter by pipeline status'),
       ref: z.string().optional().describe('Filter by branch or tag name'),
       sha: z.string().optional().describe('Filter by commit SHA'),
+      scope: z.string().optional().describe('Filter by pipeline scope'),
       source: z
         .string()
         .optional()
         .describe('Filter by pipeline source (push, web, trigger, schedule, etc.)'),
+      name: z.string().optional().describe('Filter by pipeline name'),
+      yamlErrors: z.boolean().optional().describe('Filter pipelines with YAML errors'),
       orderBy: z
         .enum(['id', 'status', 'ref', 'updated_at', 'user_id'])
         .optional()
@@ -52,29 +58,34 @@ export let listPipelines = SlateTool.create(spec, {
         z.object({
           pipelineId: z.number().describe('Pipeline ID'),
           pipelineIid: z.number().nullable().describe('Pipeline IID'),
+          iid: z.number().optional().describe('Pipeline IID within the project'),
+          projectId: z.number().optional().describe('Numeric project ID'),
           status: z.string().describe('Pipeline status'),
           ref: z.string().describe('Branch/tag'),
           sha: z.string().describe('Commit SHA'),
-          webUrl: z.string().describe('URL to the pipeline'),
-          source: z.string().nullable().describe('Pipeline source'),
-          createdAt: z.string().describe('Creation timestamp'),
-          updatedAt: z.string().describe('Last update timestamp')
+          webUrl: z.string().optional().describe('URL to the pipeline'),
+          source: z.string().optional().nullable().describe('Pipeline source'),
+          yamlErrors: z.string().optional().nullable().describe('YAML validation errors'),
+          createdAt: z.string().optional().describe('Creation timestamp'),
+          updatedAt: z.string().optional().describe('Last update timestamp'),
+          name: z.string().optional().nullable().describe('Pipeline name')
         })
       ),
       totalPages: z.number().describe('Total pages')
     })
   )
   .handleInvocation(async ctx => {
-    let client = new GitLabClient({
-      token: ctx.auth.token,
-      instanceUrl: ctx.auth.instanceUrl
-    });
+    let client = createClient(ctx.auth, ctx.config);
+    let projectId = resolveProjectId(ctx.input.projectId, ctx.config.projectId);
 
-    let result = await client.listPipelines(ctx.input.projectId, {
+    let result = await client.listPipelines(projectId, {
       status: ctx.input.status,
+      scope: ctx.input.scope,
       ref: ctx.input.ref,
       sha: ctx.input.sha,
       source: ctx.input.source,
+      name: ctx.input.name,
+      yamlErrors: ctx.input.yamlErrors,
       orderBy: ctx.input.orderBy,
       sort: ctx.input.sort,
       perPage: ctx.input.perPage,
@@ -84,13 +95,17 @@ export let listPipelines = SlateTool.create(spec, {
     let pipelines = result.pipelines.map((p: any) => ({
       pipelineId: p.id,
       pipelineIid: p.iid || null,
+      iid: p.iid,
+      projectId: p.project_id,
       status: p.status,
       ref: p.ref,
       sha: p.sha,
       webUrl: p.web_url,
       source: p.source || null,
+      yamlErrors: p.yaml_errors,
       createdAt: p.created_at,
-      updatedAt: p.updated_at
+      updatedAt: p.updated_at,
+      name: p.name
     }));
 
     return {
