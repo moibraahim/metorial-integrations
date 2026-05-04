@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -30,6 +31,7 @@ export let listOwners = SlateTool.create(spec, {
   description: `List CRM owners (users who can be assigned to records) in HubSpot. Useful for finding owner IDs to assign to contacts, companies, deals, or tickets.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.listOwners)
   .input(
     z.object({
       limit: z
@@ -90,6 +92,7 @@ export let getOwner = SlateTool.create(spec, {
   description: `Retrieve a specific CRM owner by ID from HubSpot.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getOwner)
   .input(
     z.object({
       ownerId: z.string().describe('HubSpot owner ID')

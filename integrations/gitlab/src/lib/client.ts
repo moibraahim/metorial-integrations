@@ -1,4 +1,5 @@
 import { createAxios } from 'slates';
+import { getGitLabErrorStatus, gitLabApiError } from './errors';
 
 export interface GitLabClientConfig {
   token: string;
@@ -14,6 +15,10 @@ export class GitLabClient {
     this.api = createAxios({
       baseURL: `${this.baseUrl}/api/v4`
     });
+    this.api.interceptors?.response.use(
+      (response: any) => response,
+      (error: unknown) => Promise.reject(gitLabApiError(error))
+    );
   }
 
   private headers() {
@@ -263,7 +268,9 @@ export class GitLabClient {
       );
       return response.data;
     } catch (e: any) {
-      if (e?.response?.status === 400 || e?.response?.status === 404) {
+      let status = getGitLabErrorStatus(e);
+
+      if (status === 400 || status === 404 || status === '400' || status === '404') {
         let response = await this.api.post(
           `/projects/${encodeURIComponent(String(projectId))}/repository/files/${encodeURIComponent(filePath)}`,
           body,
@@ -271,7 +278,7 @@ export class GitLabClient {
         );
         return response.data;
       }
-      throw e;
+      throw gitLabApiError(e, 'create or update repository file');
     }
   }
 
@@ -674,9 +681,12 @@ export class GitLabClient {
     projectId: string | number,
     params: {
       status?: string;
+      scope?: string;
       ref?: string;
       sha?: string;
       source?: string;
+      name?: string;
+      yamlErrors?: boolean;
       orderBy?: string;
       sort?: string;
       perPage?: number;
@@ -686,9 +696,12 @@ export class GitLabClient {
   ): Promise<{ pipelines: any[]; totalPages: number }> {
     let queryParams: Record<string, any> = {};
     if (params.status) queryParams.status = params.status;
+    if (params.scope) queryParams.scope = params.scope;
     if (params.ref) queryParams.ref = params.ref;
     if (params.sha) queryParams.sha = params.sha;
     if (params.source) queryParams.source = params.source;
+    if (params.name) queryParams.name = params.name;
+    if (params.yamlErrors !== undefined) queryParams.yaml_errors = params.yamlErrors;
     if (params.orderBy) queryParams.order_by = params.orderBy;
     if (params.sort) queryParams.sort = params.sort;
     if (params.perPage) queryParams.per_page = params.perPage;
@@ -715,21 +728,35 @@ export class GitLabClient {
   async createPipeline(
     projectId: string | number,
     ref: string,
-    variables?: Array<{ key: string; value: string; variableType?: string }>
+    variables?: Array<{
+      key: string;
+      value: string;
+      variableType?: string;
+      variable_type?: string;
+    }>
   ): Promise<any> {
-    let body: Record<string, any> = { ref };
+    let body = new URLSearchParams({ ref });
     if (variables) {
-      body.variables = variables.map(variable => ({
-        key: variable.key,
-        value: variable.value,
-        variable_type: variable.variableType
-      }));
+      variables.forEach((variable, index) => {
+        body.set(`variables[${index}][key]`, variable.key);
+        body.set(`variables[${index}][value]`, variable.value);
+
+        let variableType = variable.variableType ?? variable.variable_type;
+        if (variableType) {
+          body.set(`variables[${index}][variable_type]`, variableType);
+        }
+      });
     }
 
     let response = await this.api.post(
       `/projects/${encodeURIComponent(String(projectId))}/pipeline`,
-      body,
-      { headers: this.headers() }
+      body.toString(),
+      {
+        headers: {
+          ...this.headers(),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
     );
     return response.data;
   }
@@ -752,11 +779,60 @@ export class GitLabClient {
     return response.data;
   }
 
+  async deletePipeline(projectId: string | number, pipelineId: number): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/pipelines/${pipelineId}`,
+      { headers: this.headers() }
+    );
+  }
+
+  async getPipelineTestReport(projectId: string | number, pipelineId: number): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/pipelines/${pipelineId}/test_report`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async getPipelineTestReportSummary(
+    projectId: string | number,
+    pipelineId: number
+  ): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/pipelines/${pipelineId}/test_report_summary`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
   // ── Jobs ──────────────────────────────────────────────────
 
   async listPipelineJobs(
     projectId: string | number,
     pipelineId: number,
+    params: {
+      scope?: string[];
+      includeRetried?: boolean;
+      perPage?: number;
+      page?: number;
+    } = {}
+  ): Promise<any[]> {
+    let queryParams: Record<string, any> = {};
+    if (params.scope) queryParams.scope = params.scope;
+    if (params.includeRetried !== undefined)
+      queryParams.include_retried = params.includeRetried;
+    if (params.perPage) queryParams.per_page = params.perPage;
+    if (params.page) queryParams.page = params.page;
+
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/pipelines/${pipelineId}/jobs`,
+      { params: queryParams, headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async listProjectJobs(
+    projectId: string | number,
     params: {
       scope?: string[];
       perPage?: number;
@@ -769,7 +845,7 @@ export class GitLabClient {
     if (params.page) queryParams.page = params.page;
 
     let response = await this.api.get(
-      `/projects/${encodeURIComponent(String(projectId))}/pipelines/${pipelineId}/jobs`,
+      `/projects/${encodeURIComponent(String(projectId))}/jobs`,
       { params: queryParams, headers: this.headers() }
     );
     return response.data;
@@ -786,7 +862,7 @@ export class GitLabClient {
   async getJobLog(projectId: string | number, jobId: number): Promise<string> {
     let response = await this.api.get(
       `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/trace`,
-      { headers: this.headers() }
+      { headers: { ...this.headers(), Accept: 'text/plain' } }
     );
     return response.data;
   }
@@ -804,6 +880,28 @@ export class GitLabClient {
     let response = await this.api.post(
       `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/cancel`,
       {},
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async eraseJob(projectId: string | number, jobId: number): Promise<any> {
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/erase`,
+      {},
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async playJob(
+    projectId: string | number,
+    jobId: number,
+    variables?: Array<{ key: string; value: string }>
+  ): Promise<any> {
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/play`,
+      variables ? { job_variables_attributes: variables } : {},
       { headers: this.headers() }
     );
     return response.data;
@@ -1218,6 +1316,114 @@ export class GitLabClient {
     return response.data;
   }
 
+  async getEnvironment(projectId: string | number, environmentId: number): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/environments/${environmentId}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async createEnvironment(
+    projectId: string | number,
+    params: {
+      name: string;
+      external_url?: string;
+      externalUrl?: string;
+      tier?: string;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = { name: params.name };
+    if (params.external_url ?? params.externalUrl)
+      body.external_url = params.external_url ?? params.externalUrl;
+    if (params.tier) body.tier = params.tier;
+
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/environments`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async updateEnvironment(
+    projectId: string | number,
+    environmentId: number,
+    params: {
+      name?: string;
+      external_url?: string;
+      externalUrl?: string;
+      tier?: string;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {};
+    if (params.name !== undefined) body.name = params.name;
+    if (params.external_url !== undefined || params.externalUrl !== undefined)
+      body.external_url = params.external_url ?? params.externalUrl;
+    if (params.tier !== undefined) body.tier = params.tier;
+
+    let response = await this.api.put(
+      `/projects/${encodeURIComponent(String(projectId))}/environments/${environmentId}`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async stopEnvironment(projectId: string | number, environmentId: number): Promise<any> {
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/environments/${environmentId}/stop`,
+      {},
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async deleteEnvironment(projectId: string | number, environmentId: number): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/environments/${environmentId}`,
+      { headers: this.headers() }
+    );
+  }
+
+  // ── Deployments ───────────────────────────────────────────
+
+  async listDeployments(
+    projectId: string | number,
+    params: {
+      order_by?: string;
+      orderBy?: string;
+      sort?: string;
+      environment?: string;
+      status?: string;
+      perPage?: number;
+      page?: number;
+    } = {}
+  ): Promise<any[]> {
+    let queryParams: Record<string, any> = {};
+    if (params.order_by ?? params.orderBy)
+      queryParams.order_by = params.order_by ?? params.orderBy;
+    if (params.sort) queryParams.sort = params.sort;
+    if (params.environment) queryParams.environment = params.environment;
+    if (params.status) queryParams.status = params.status;
+    if (params.perPage) queryParams.per_page = params.perPage;
+    if (params.page) queryParams.page = params.page;
+
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/deployments`,
+      { params: queryParams, headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async getDeployment(projectId: string | number, deploymentId: number): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/deployments/${deploymentId}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
   // ── CI/CD Variables ───────────────────────────────────────
 
   async listProjectVariables(projectId: string | number): Promise<any[]> {
@@ -1234,22 +1440,543 @@ export class GitLabClient {
       key: string;
       value: string;
       variableType?: string;
+      variable_type?: string;
       protected?: boolean;
       masked?: boolean;
       environmentScope?: string;
+      environment_scope?: string;
     }
   ): Promise<any> {
     let body: Record<string, any> = {
       key: params.key,
       value: params.value
     };
-    if (params.variableType) body.variable_type = params.variableType;
+    if (params.variableType ?? params.variable_type)
+      body.variable_type = params.variableType ?? params.variable_type;
     if (params.protected !== undefined) body.protected = params.protected;
     if (params.masked !== undefined) body.masked = params.masked;
-    if (params.environmentScope) body.environment_scope = params.environmentScope;
+    if (params.environmentScope ?? params.environment_scope)
+      body.environment_scope = params.environmentScope ?? params.environment_scope;
 
     let response = await this.api.post(
       `/projects/${encodeURIComponent(String(projectId))}/variables`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async getProjectVariable(projectId: string | number, key: string): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/variables/${encodeURIComponent(key)}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async updateProjectVariable(
+    projectId: string | number,
+    key: string,
+    params: {
+      value?: string;
+      variableType?: string;
+      variable_type?: string;
+      protected?: boolean;
+      masked?: boolean;
+      environmentScope?: string;
+      environment_scope?: string;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {};
+    if (params.value !== undefined) body.value = params.value;
+    if (params.variableType !== undefined || params.variable_type !== undefined)
+      body.variable_type = params.variableType ?? params.variable_type;
+    if (params.protected !== undefined) body.protected = params.protected;
+    if (params.masked !== undefined) body.masked = params.masked;
+    if (params.environmentScope !== undefined || params.environment_scope !== undefined)
+      body.environment_scope = params.environmentScope ?? params.environment_scope;
+
+    let response = await this.api.put(
+      `/projects/${encodeURIComponent(String(projectId))}/variables/${encodeURIComponent(key)}`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async deleteProjectVariable(projectId: string | number, key: string): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/variables/${encodeURIComponent(key)}`,
+      { headers: this.headers() }
+    );
+  }
+
+  async listGroupVariables(groupId: string | number): Promise<any[]> {
+    let response = await this.api.get(
+      `/groups/${encodeURIComponent(String(groupId))}/variables`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async getGroupVariable(groupId: string | number, key: string): Promise<any> {
+    let response = await this.api.get(
+      `/groups/${encodeURIComponent(String(groupId))}/variables/${encodeURIComponent(key)}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async createGroupVariable(
+    groupId: string | number,
+    params: {
+      key: string;
+      value: string;
+      variableType?: string;
+      variable_type?: string;
+      protected?: boolean;
+      masked?: boolean;
+      environmentScope?: string;
+      environment_scope?: string;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {
+      key: params.key,
+      value: params.value
+    };
+    if (params.variableType ?? params.variable_type)
+      body.variable_type = params.variableType ?? params.variable_type;
+    if (params.protected !== undefined) body.protected = params.protected;
+    if (params.masked !== undefined) body.masked = params.masked;
+    if (params.environmentScope ?? params.environment_scope)
+      body.environment_scope = params.environmentScope ?? params.environment_scope;
+
+    let response = await this.api.post(
+      `/groups/${encodeURIComponent(String(groupId))}/variables`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async updateGroupVariable(
+    groupId: string | number,
+    key: string,
+    params: {
+      value?: string;
+      variableType?: string;
+      variable_type?: string;
+      protected?: boolean;
+      masked?: boolean;
+      environmentScope?: string;
+      environment_scope?: string;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {};
+    if (params.value !== undefined) body.value = params.value;
+    if (params.variableType !== undefined || params.variable_type !== undefined)
+      body.variable_type = params.variableType ?? params.variable_type;
+    if (params.protected !== undefined) body.protected = params.protected;
+    if (params.masked !== undefined) body.masked = params.masked;
+    if (params.environmentScope !== undefined || params.environment_scope !== undefined)
+      body.environment_scope = params.environmentScope ?? params.environment_scope;
+
+    let response = await this.api.put(
+      `/groups/${encodeURIComponent(String(groupId))}/variables/${encodeURIComponent(key)}`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async deleteGroupVariable(groupId: string | number, key: string): Promise<void> {
+    await this.api.delete(
+      `/groups/${encodeURIComponent(String(groupId))}/variables/${encodeURIComponent(key)}`,
+      { headers: this.headers() }
+    );
+  }
+
+  // ── Pipeline Triggers ─────────────────────────────────────
+
+  async listPipelineTriggers(projectId: string | number): Promise<any[]> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/triggers`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async createPipelineTrigger(projectId: string | number, description: string): Promise<any> {
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/triggers`,
+      { description },
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async getPipelineTrigger(projectId: string | number, triggerId: number): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/triggers/${triggerId}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async updatePipelineTrigger(
+    projectId: string | number,
+    triggerId: number,
+    description: string
+  ): Promise<any> {
+    let response = await this.api.put(
+      `/projects/${encodeURIComponent(String(projectId))}/triggers/${triggerId}`,
+      { description },
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async deletePipelineTrigger(projectId: string | number, triggerId: number): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/triggers/${triggerId}`,
+      { headers: this.headers() }
+    );
+  }
+
+  async triggerPipeline(
+    projectId: string | number,
+    token: string,
+    ref: string,
+    variables?: Record<string, string>
+  ): Promise<any> {
+    let formData = new URLSearchParams({ token, ref });
+    if (variables) {
+      for (let [key, value] of Object.entries(variables)) {
+        formData.set(`variables[${key}]`, value);
+      }
+    }
+
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/trigger/pipeline`,
+      formData.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+    return response.data;
+  }
+
+  // ── Pipeline Schedules ────────────────────────────────────
+
+  async listPipelineSchedules(
+    projectId: string | number,
+    params: { scope?: string } = {}
+  ): Promise<any[]> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules`,
+      { params, headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async getPipelineSchedule(projectId: string | number, scheduleId: number): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules/${scheduleId}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async createPipelineSchedule(
+    projectId: string | number,
+    params: {
+      description: string;
+      ref: string;
+      cron: string;
+      cron_timezone?: string;
+      cronTimezone?: string;
+      active?: boolean;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {
+      description: params.description,
+      ref: params.ref,
+      cron: params.cron
+    };
+    if (params.cron_timezone ?? params.cronTimezone)
+      body.cron_timezone = params.cron_timezone ?? params.cronTimezone;
+    if (params.active !== undefined) body.active = params.active;
+
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async updatePipelineSchedule(
+    projectId: string | number,
+    scheduleId: number,
+    params: {
+      description?: string;
+      ref?: string;
+      cron?: string;
+      cron_timezone?: string;
+      cronTimezone?: string;
+      active?: boolean;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {};
+    if (params.description !== undefined) body.description = params.description;
+    if (params.ref !== undefined) body.ref = params.ref;
+    if (params.cron !== undefined) body.cron = params.cron;
+    if (params.cron_timezone !== undefined || params.cronTimezone !== undefined)
+      body.cron_timezone = params.cron_timezone ?? params.cronTimezone;
+    if (params.active !== undefined) body.active = params.active;
+
+    let response = await this.api.put(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules/${scheduleId}`,
+      body,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async deletePipelineSchedule(projectId: string | number, scheduleId: number): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules/${scheduleId}`,
+      { headers: this.headers() }
+    );
+  }
+
+  async createPipelineScheduleVariable(
+    projectId: string | number,
+    scheduleId: number,
+    key: string,
+    value: string,
+    variableType?: string
+  ): Promise<any> {
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules/${scheduleId}/variables`,
+      { key, value, variable_type: variableType || 'env_var' },
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async updatePipelineScheduleVariable(
+    projectId: string | number,
+    scheduleId: number,
+    key: string,
+    value: string,
+    variableType?: string
+  ): Promise<any> {
+    let response = await this.api.put(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules/${scheduleId}/variables/${encodeURIComponent(key)}`,
+      { value, variable_type: variableType || 'env_var' },
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async deletePipelineScheduleVariable(
+    projectId: string | number,
+    scheduleId: number,
+    key: string
+  ): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/pipeline_schedules/${scheduleId}/variables/${encodeURIComponent(key)}`,
+      { headers: this.headers() }
+    );
+  }
+
+  // ── Runners ───────────────────────────────────────────────
+
+  async listProjectRunners(
+    projectId: string | number,
+    params: {
+      type?: string;
+      status?: string;
+      paused?: boolean;
+      tag_list?: string;
+      tagList?: string;
+    } = {}
+  ): Promise<any[]> {
+    let queryParams: Record<string, any> = {};
+    if (params.type) queryParams.type = params.type;
+    if (params.status) queryParams.status = params.status;
+    if (params.paused !== undefined) queryParams.paused = params.paused;
+    if (params.tag_list ?? params.tagList)
+      queryParams.tag_list = params.tag_list ?? params.tagList;
+
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/runners`,
+      { params: queryParams, headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async listAllRunners(
+    params: {
+      type?: string;
+      status?: string;
+      paused?: boolean;
+      tag_list?: string;
+      tagList?: string;
+      perPage?: number;
+      page?: number;
+    } = {}
+  ): Promise<any[]> {
+    let queryParams: Record<string, any> = {};
+    if (params.type) queryParams.type = params.type;
+    if (params.status) queryParams.status = params.status;
+    if (params.paused !== undefined) queryParams.paused = params.paused;
+    if (params.tag_list ?? params.tagList)
+      queryParams.tag_list = params.tag_list ?? params.tagList;
+    if (params.perPage) queryParams.per_page = params.perPage;
+    if (params.page) queryParams.page = params.page;
+
+    let response = await this.api.get('/runners/all', {
+      params: queryParams,
+      headers: this.headers()
+    });
+    return response.data;
+  }
+
+  async getRunner(runnerId: number): Promise<any> {
+    let response = await this.api.get(`/runners/${runnerId}`, {
+      headers: this.headers()
+    });
+    return response.data;
+  }
+
+  async updateRunner(
+    runnerId: number,
+    params: {
+      description?: string;
+      active?: boolean;
+      paused?: boolean;
+      tag_list?: string[];
+      tagList?: string[];
+      run_untagged?: boolean;
+      runUntagged?: boolean;
+      locked?: boolean;
+      access_level?: string;
+      accessLevel?: string;
+      maximum_timeout?: number;
+      maximumTimeout?: number;
+    }
+  ): Promise<any> {
+    let body: Record<string, any> = {};
+    if (params.description !== undefined) body.description = params.description;
+    if (params.active !== undefined) body.active = params.active;
+    if (params.paused !== undefined) body.paused = params.paused;
+    if (params.tag_list !== undefined || params.tagList !== undefined)
+      body.tag_list = params.tag_list ?? params.tagList;
+    if (params.run_untagged !== undefined || params.runUntagged !== undefined)
+      body.run_untagged = params.run_untagged ?? params.runUntagged;
+    if (params.locked !== undefined) body.locked = params.locked;
+    if (params.access_level !== undefined || params.accessLevel !== undefined)
+      body.access_level = params.access_level ?? params.accessLevel;
+    if (params.maximum_timeout !== undefined || params.maximumTimeout !== undefined)
+      body.maximum_timeout = params.maximum_timeout ?? params.maximumTimeout;
+
+    let response = await this.api.put(`/runners/${runnerId}`, body, {
+      headers: this.headers()
+    });
+    return response.data;
+  }
+
+  async deleteRunner(runnerId: number): Promise<void> {
+    await this.api.delete(`/runners/${runnerId}`, {
+      headers: this.headers()
+    });
+  }
+
+  async listRunnerJobs(
+    runnerId: number,
+    params: {
+      status?: string;
+      order_by?: string;
+      orderBy?: string;
+      sort?: string;
+    } = {}
+  ): Promise<any[]> {
+    let queryParams: Record<string, any> = {};
+    if (params.status) queryParams.status = params.status;
+    if (params.order_by ?? params.orderBy)
+      queryParams.order_by = params.order_by ?? params.orderBy;
+    if (params.sort) queryParams.sort = params.sort;
+
+    let response = await this.api.get(`/runners/${runnerId}/jobs`, {
+      params: queryParams,
+      headers: this.headers()
+    });
+    return response.data;
+  }
+
+  // ── Artifacts ─────────────────────────────────────────────
+
+  async downloadJobArtifacts(projectId: string | number, jobId: number): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/artifacts`,
+      { headers: this.headers(), responseType: 'arraybuffer' }
+    );
+    return response.data;
+  }
+
+  async downloadArtifactFile(
+    projectId: string | number,
+    jobId: number,
+    artifactPath: string
+  ): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/artifacts/${artifactPath}`,
+      { headers: this.headers() }
+    );
+    return response.data;
+  }
+
+  async downloadBranchArtifacts(
+    projectId: string | number,
+    refName: string,
+    jobName: string
+  ): Promise<any> {
+    let response = await this.api.get(
+      `/projects/${encodeURIComponent(String(projectId))}/jobs/artifacts/${encodeURIComponent(refName)}/download`,
+      { headers: this.headers(), params: { job: jobName }, responseType: 'arraybuffer' }
+    );
+    return response.data;
+  }
+
+  async deleteJobArtifacts(projectId: string | number, jobId: number): Promise<void> {
+    await this.api.delete(
+      `/projects/${encodeURIComponent(String(projectId))}/jobs/${jobId}/artifacts`,
+      { headers: this.headers() }
+    );
+  }
+
+  // ── CI Lint ───────────────────────────────────────────────
+
+  async lintCiConfig(
+    projectId: string | number,
+    content: string,
+    params: {
+      dry_run?: boolean;
+      dryRun?: boolean;
+      include_merged_yaml?: boolean;
+      includeMergedYaml?: boolean;
+      ref?: string;
+    } = {}
+  ): Promise<any> {
+    let body: Record<string, any> = { content };
+    if (params.dry_run !== undefined || params.dryRun !== undefined)
+      body.dry_run = params.dry_run ?? params.dryRun;
+    if (params.include_merged_yaml !== undefined || params.includeMergedYaml !== undefined)
+      body.include_merged_yaml = params.include_merged_yaml ?? params.includeMergedYaml;
+    if (params.ref !== undefined) body.ref = params.ref;
+
+    let response = await this.api.post(
+      `/projects/${encodeURIComponent(String(projectId))}/ci/lint`,
       body,
       { headers: this.headers() }
     );

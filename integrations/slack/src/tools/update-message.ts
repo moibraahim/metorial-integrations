@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -12,6 +13,7 @@ export let updateMessage = SlateTool.create(spec, {
     readOnly: false
   }
 })
+  .scopes(slackActionScopes.chatWrite)
   .input(
     z.object({
       channelId: z.string().describe('Channel ID where the message exists'),

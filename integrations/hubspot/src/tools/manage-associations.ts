@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -13,6 +14,7 @@ export let createAssociation = SlateTool.create(spec, {
   ],
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createAssociation)
   .input(
     z.object({
       fromObjectType: z
@@ -67,6 +69,7 @@ export let getAssociations = SlateTool.create(spec, {
   description: `Retrieve all associations of a specific type for a CRM object. For example, get all contacts associated with a company, or all deals associated with a contact.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getAssociations)
   .input(
     z.object({
       fromObjectType: z
@@ -127,6 +130,7 @@ export let deleteAssociation = SlateTool.create(spec, {
   description: `Remove an association between two CRM objects in HubSpot. This removes the relationship link without deleting the objects themselves.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteAssociation)
   .input(
     z.object({
       fromObjectType: z.string().describe('Source object type'),

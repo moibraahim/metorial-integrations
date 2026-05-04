@@ -14,6 +14,7 @@ import { readFile } from 'fs/promises';
 export interface SlatesRuntimeContext {
   integration: string | null;
   profileId: string | null;
+  authMethodId: string | null;
   profile: SlatesProfileRecord | null;
   rootDir: string;
   storePath: string;
@@ -23,6 +24,30 @@ export interface SlatesRuntimeContext {
 export type SlatesTestClient = ReturnType<typeof createSlatesClient>;
 
 type LocalSlate = Parameters<typeof createLocalSlateTransport>[0]['slate'];
+
+let selectProfileAuth = (profile: SlatesProfileRecord | null, authMethodId: string | null) => {
+  if (!profile || !authMethodId) {
+    return profile;
+  }
+
+  let selectedAuth = profile.auth[authMethodId];
+  if (!selectedAuth) {
+    let availableAuthMethods = Object.keys(profile.auth);
+    throw new Error(
+      `No stored authentication found for auth method "${authMethodId}" in profile "${profile.name}".` +
+        (availableAuthMethods.length > 0
+          ? ` Available auth methods: ${availableAuthMethods.join(', ')}.`
+          : ' No auth methods are stored for this profile.')
+    );
+  }
+
+  return {
+    ...profile,
+    auth: {
+      [selectedAuth.authMethodId]: selectedAuth
+    }
+  };
+};
 
 export interface ExpectedSlateAction {
   id: string;
@@ -34,8 +59,9 @@ export interface ExpectedSlateAction {
 }
 
 export let getVitestExpect = () => {
-  let maybeExpect = (globalThis as typeof globalThis & { expect?: typeof import('vitest').expect })
-    .expect;
+  let maybeExpect = (
+    globalThis as typeof globalThis & { expect?: typeof import('vitest').expect }
+  ).expect;
 
   if (!maybeExpect) {
     throw new Error('Vitest expect is not available in the current runtime.');
@@ -56,6 +82,7 @@ export let loadSlatesRuntimeContext = async (
     let parsed = JSON.parse(raw) as {
       integration?: string | null;
       profileId: string | null;
+      authMethodId?: string | null;
       rootDir?: string;
       storePath: string;
       cliDir: string;
@@ -64,11 +91,16 @@ export let loadSlatesRuntimeContext = async (
       storePath: parsed.storePath,
       rootDir: parsed.rootDir ?? process.env.SLATES_STORE_ROOT_DIR
     });
-    let profile = store.getProfile(opts.profile ?? parsed.profileId ?? null);
+    let authMethodId = parsed.authMethodId ?? null;
+    let profile = selectProfileAuth(
+      store.getProfile(opts.profile ?? parsed.profileId ?? null),
+      authMethodId
+    );
 
     return {
       integration: parsed.integration ?? store.scope?.key ?? null,
       profileId: profile?.id ?? parsed.profileId ?? null,
+      authMethodId,
       profile,
       rootDir: parsed.rootDir ?? store.rootDir,
       storePath: parsed.storePath,
@@ -83,11 +115,13 @@ export let loadSlatesRuntimeContext = async (
       })
     : await openSlatesCliStore({ cwd: opts.cwd });
   let profileId = opts.profile ?? process.env.SLATES_PROFILE_ID ?? null;
-  let profile = store.getProfile(profileId);
+  let authMethodId = null;
+  let profile = selectProfileAuth(store.getProfile(profileId), authMethodId);
 
   return {
     integration: process.env.SLATES_INTEGRATION ?? store.scope?.key ?? null,
     profileId: profile?.id ?? null,
+    authMethodId,
     profile,
     rootDir: store.rootDir,
     storePath: store.storePath,
@@ -176,7 +210,10 @@ export let getSlateContract = async (client: SlatesTestClient) => {
   };
 };
 
-let expectActionMatches = (actual: Record<string, any> | undefined, expected: ExpectedSlateAction) => {
+let expectActionMatches = (
+  actual: Record<string, any> | undefined,
+  expected: ExpectedSlateAction
+) => {
   let expect = getVitestExpect();
   expect(actual).toBeTruthy();
   expect(actual?.id).toBe(expected.id);
@@ -243,11 +280,17 @@ export let expectSlateContract = async (d: {
   }
 
   for (let tool of d.tools ?? []) {
-    expectActionMatches(contract.tools.find(action => action.id === tool.id), tool);
+    expectActionMatches(
+      contract.tools.find(action => action.id === tool.id),
+      tool
+    );
   }
 
   for (let trigger of d.triggers ?? []) {
-    expectActionMatches(contract.triggers.find(action => action.id === trigger.id), trigger);
+    expectActionMatches(
+      contract.triggers.find(action => action.id === trigger.id),
+      trigger
+    );
   }
 
   return contract;

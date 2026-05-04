@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -60,7 +61,7 @@ export let createCommentTool = SlateTool.create(spec, {
     let result = await client.createComment(input);
 
     if (!result.success) {
-      throw new Error('Failed to create comment');
+      throw linearServiceError('Failed to create comment');
     }
 
     return {
@@ -93,7 +94,7 @@ export let updateCommentTool = SlateTool.create(spec, {
     });
 
     if (!result.success) {
-      throw new Error('Failed to update comment');
+      throw linearServiceError('Failed to update comment');
     }
 
     return {

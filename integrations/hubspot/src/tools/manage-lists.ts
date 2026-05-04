@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -26,6 +27,7 @@ export let createList = SlateTool.create(spec, {
   ],
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createList)
   .input(
     z.object({
       name: z.string().describe('List name'),
@@ -72,6 +74,7 @@ export let getList = SlateTool.create(spec, {
   description: `Retrieve a list from HubSpot by ID, including its metadata and membership count.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getList)
   .input(
     z.object({
       listId: z.string().describe('HubSpot list ID')
@@ -106,6 +109,7 @@ export let updateListMembership = SlateTool.create(spec, {
   ],
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.updateListMembership)
   .input(
     z.object({
       listId: z.string().describe('HubSpot list ID'),
@@ -153,6 +157,7 @@ export let deleteList = SlateTool.create(spec, {
   description: `Delete a list from HubSpot. This removes the list definition but does not delete the records in it.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteList)
   .input(
     z.object({
       listId: z.string().describe('HubSpot list ID to delete')
@@ -180,6 +185,7 @@ export let searchLists = SlateTool.create(spec, {
   description: `Search for lists in HubSpot by name. Optionally filter by processing type (MANUAL, DYNAMIC, or SNAPSHOT).`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.searchLists)
   .input(
     z.object({
       query: z.string().describe('Search query for list name'),

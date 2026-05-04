@@ -1,5 +1,6 @@
 import { SlateAuth, createAxios } from 'slates';
 import { z } from 'zod';
+import { gitLabApiError, gitLabServiceError } from './lib/errors';
 
 let outputSchema = z.object({
   token: z.string(),
@@ -126,17 +127,22 @@ function createGitlabOauth(opts: {
 
       let oauthAxios = createAxios({ baseURL: baseUrl });
 
-      let response = await oauthAxios.post(
-        '/oauth/token',
-        new URLSearchParams({
-          client_id: ctx.clientId,
-          client_secret: ctx.clientSecret,
-          code: ctx.code,
-          grant_type: 'authorization_code',
-          redirect_uri: ctx.redirectUri
-        }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
+      let response;
+      try {
+        response = await oauthAxios.post(
+          '/oauth/token',
+          new URLSearchParams({
+            client_id: ctx.clientId,
+            client_secret: ctx.clientSecret,
+            code: ctx.code,
+            grant_type: 'authorization_code',
+            redirect_uri: ctx.redirectUri
+          }).toString(),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
+      } catch (error) {
+        throw gitLabApiError(error, 'OAuth token exchange');
+      }
 
       let data = response.data;
       let expiresAt = data.expires_in
@@ -155,7 +161,7 @@ function createGitlabOauth(opts: {
 
     handleTokenRefresh: async (ctx: any) => {
       if (!ctx.output.refreshToken) {
-        throw new Error('No refresh token available');
+        throw gitLabServiceError('No refresh token available');
       }
 
       let baseUrl = ctx.output.instanceUrl
@@ -164,16 +170,21 @@ function createGitlabOauth(opts: {
 
       let oauthAxios = createAxios({ baseURL: baseUrl });
 
-      let response = await oauthAxios.post(
-        '/oauth/token',
-        new URLSearchParams({
-          client_id: ctx.clientId,
-          client_secret: ctx.clientSecret,
-          refresh_token: ctx.output.refreshToken,
-          grant_type: 'refresh_token'
-        }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
+      let response;
+      try {
+        response = await oauthAxios.post(
+          '/oauth/token',
+          new URLSearchParams({
+            client_id: ctx.clientId,
+            client_secret: ctx.clientSecret,
+            refresh_token: ctx.output.refreshToken,
+            grant_type: 'refresh_token'
+          }).toString(),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
+      } catch (error) {
+        throw gitLabApiError(error, 'OAuth token refresh');
+      }
 
       let data = response.data;
       let expiresAt = data.expires_in
@@ -193,9 +204,14 @@ function createGitlabOauth(opts: {
     getProfile: async (ctx: { output: AuthOutput; input: any; scopes: string[] }) => {
       let baseUrl = normalizeBaseUrl(ctx.output.instanceUrl);
       let apiAxios = createAxios({ baseURL: `${baseUrl}/api/v4` });
-      let response = await apiAxios.get('/user', {
-        headers: { Authorization: `Bearer ${ctx.output.token}` }
-      });
+      let response;
+      try {
+        response = await apiAxios.get('/user', {
+          headers: { Authorization: `Bearer ${ctx.output.token}` }
+        });
+      } catch (error) {
+        throw gitLabApiError(error, 'get OAuth profile');
+      }
       let data = response.data;
       return {
         profile: {
@@ -248,9 +264,14 @@ function createGitlabPat(opts: {
     getProfile: async (ctx: { output: AuthOutput; input: any }) => {
       let baseUrl = normalizeBaseUrl(ctx.output.instanceUrl);
       let apiAxios = createAxios({ baseURL: `${baseUrl}/api/v4` });
-      let response = await apiAxios.get('/user', {
-        headers: { 'PRIVATE-TOKEN': ctx.output.token }
-      });
+      let response;
+      try {
+        response = await apiAxios.get('/user', {
+          headers: { 'PRIVATE-TOKEN': ctx.output.token }
+        });
+      } catch (error) {
+        throw gitLabApiError(error, 'get token profile');
+      }
       let data = response.data;
       return {
         profile: {

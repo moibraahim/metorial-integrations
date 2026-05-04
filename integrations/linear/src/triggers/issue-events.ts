@@ -1,5 +1,6 @@
 import { SlateTrigger } from 'slates';
 import { LinearClient } from '../lib/client';
+import { linearServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -55,7 +56,7 @@ export let issueEventsTrigger = SlateTrigger.create(spec, {
       });
 
       if (!result.success) {
-        throw new Error('Failed to register webhook');
+        throw linearServiceError('Failed to register webhook');
       }
 
       return {

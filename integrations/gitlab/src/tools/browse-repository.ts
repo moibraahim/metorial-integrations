@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -112,7 +113,7 @@ export let browseRepository = SlateTool.create(spec, {
       }
 
       case 'file': {
-        if (!ctx.input.path) throw new Error('File path is required');
+        if (!ctx.input.path) throw gitLabServiceError('File path is required');
         let file = await client.getFileContent(
           ctx.input.projectId,
           ctx.input.path,
@@ -137,7 +138,7 @@ export let browseRepository = SlateTool.create(spec, {
 
       case 'compare': {
         if (!ctx.input.from || !ctx.input.to)
-          throw new Error('Both "from" and "to" refs are required for compare');
+          throw gitLabServiceError('Both "from" and "to" refs are required for compare');
         let comparison = await client.compareBranches(
           ctx.input.projectId,
           ctx.input.from,

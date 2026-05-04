@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { HubSpotClient } from '../lib/client';
+import { hubSpotActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -25,6 +26,7 @@ Use **notes** for internal comments, **emails** for email tracking, **calls** fo
   ],
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.createEngagement)
   .input(
     z.object({
       engagementType: z
@@ -79,6 +81,7 @@ export let getEngagement = SlateTool.create(spec, {
   description: `Retrieve an engagement (note, email, call, meeting, or task) from HubSpot by ID and type.`,
   tags: { readOnly: true }
 })
+  .scopes(hubSpotActionScopes.getEngagement)
   .input(
     z.object({
       engagementType: z
@@ -116,6 +119,7 @@ export let updateEngagement = SlateTool.create(spec, {
   description: `Update an existing engagement's properties in HubSpot.`,
   tags: { destructive: false, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.updateEngagement)
   .input(
     z.object({
       engagementType: z
@@ -153,6 +157,7 @@ export let deleteEngagement = SlateTool.create(spec, {
   description: `Delete an engagement (note, email, call, meeting, or task) from HubSpot.`,
   tags: { destructive: true, readOnly: false }
 })
+  .scopes(hubSpotActionScopes.deleteEngagement)
   .input(
     z.object({
       engagementType: z

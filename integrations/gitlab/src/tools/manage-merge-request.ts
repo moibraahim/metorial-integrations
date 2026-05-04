@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -72,9 +73,11 @@ export let manageMergeRequest = SlateTool.create(spec, {
 
     switch (ctx.input.action) {
       case 'create': {
-        if (!ctx.input.sourceBranch) throw new Error('Source branch is required for create');
-        if (!ctx.input.targetBranch) throw new Error('Target branch is required for create');
-        if (!ctx.input.title) throw new Error('Title is required for create');
+        if (!ctx.input.sourceBranch)
+          throw gitLabServiceError('Source branch is required for create');
+        if (!ctx.input.targetBranch)
+          throw gitLabServiceError('Target branch is required for create');
+        if (!ctx.input.title) throw gitLabServiceError('Title is required for create');
         mr = await client.createMergeRequest(ctx.input.projectId, {
           sourceBranch: ctx.input.sourceBranch,
           targetBranch: ctx.input.targetBranch,
@@ -91,7 +94,7 @@ export let manageMergeRequest = SlateTool.create(spec, {
       }
       case 'update': {
         if (!ctx.input.mergeRequestIid)
-          throw new Error('Merge request IID is required for update');
+          throw gitLabServiceError('Merge request IID is required for update');
         mr = await client.updateMergeRequest(ctx.input.projectId, ctx.input.mergeRequestIid, {
           title: ctx.input.title,
           description: ctx.input.description,
@@ -108,7 +111,7 @@ export let manageMergeRequest = SlateTool.create(spec, {
       }
       case 'merge': {
         if (!ctx.input.mergeRequestIid)
-          throw new Error('Merge request IID is required for merge');
+          throw gitLabServiceError('Merge request IID is required for merge');
         mr = await client.mergeMergeRequest(ctx.input.projectId, ctx.input.mergeRequestIid, {
           mergeCommitMessage: ctx.input.mergeCommitMessage,
           squashCommitMessage: ctx.input.squashCommitMessage,
@@ -119,7 +122,7 @@ export let manageMergeRequest = SlateTool.create(spec, {
       }
       case 'approve': {
         if (!ctx.input.mergeRequestIid)
-          throw new Error('Merge request IID is required for approve');
+          throw gitLabServiceError('Merge request IID is required for approve');
         await client.approveMergeRequest(ctx.input.projectId, ctx.input.mergeRequestIid);
         mr = await client.getMergeRequest(ctx.input.projectId, ctx.input.mergeRequestIid);
         break;

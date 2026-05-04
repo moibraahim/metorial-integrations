@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -27,6 +28,7 @@ export let listConversations = SlateTool.create(spec, {
     readOnly: true
   }
 })
+  .scopes(slackActionScopes.conversationRead)
   .input(
     z.object({
       types: z

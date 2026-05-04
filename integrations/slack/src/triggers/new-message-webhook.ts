@@ -1,4 +1,5 @@
 import { SlateTrigger } from 'slates';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -26,6 +27,7 @@ export let newMessageWebhook = SlateTrigger.create(spec, {
   description:
     'Triggers when Slack sends a `message` event to the Metorial Events URL. Use with Slack Event Subscriptions and hub route POST /slates-hub/slack/events. Complements the polling “New Message” trigger.'
 })
+  .scopes(slackActionScopes.messageEvents)
   .input(
     z.object({
       messageTs: z.string().describe('Message timestamp'),

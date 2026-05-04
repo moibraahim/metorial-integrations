@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -83,7 +84,7 @@ export let createRelease = SlateTool.create(spec, {
       };
     }
 
-    if (!ctx.input.tagName) throw new Error('Tag name is required for create');
+    if (!ctx.input.tagName) throw gitLabServiceError('Tag name is required for create');
     let release = await client.createRelease(ctx.input.projectId, {
       tagName: ctx.input.tagName,
       name: ctx.input.name,

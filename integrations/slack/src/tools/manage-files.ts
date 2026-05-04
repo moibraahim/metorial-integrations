@@ -1,5 +1,7 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { missingRequiredFieldError } from '../lib/errors';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -31,6 +33,7 @@ export let manageFiles = SlateTool.create(spec, {
     readOnly: false
   }
 })
+  .scopes(slackActionScopes.files)
   .input(
     z.object({
       action: z.enum(['upload', 'list', 'get', 'delete']).describe('File management action'),
@@ -85,7 +88,7 @@ export let manageFiles = SlateTool.create(spec, {
     });
 
     if (action === 'upload') {
-      if (!ctx.input.content) throw new Error('content is required for upload action');
+      if (!ctx.input.content) throw missingRequiredFieldError('content', 'upload action');
       let file = await client.uploadFile({
         content: ctx.input.content,
         filename: ctx.input.filename,
@@ -102,7 +105,7 @@ export let manageFiles = SlateTool.create(spec, {
     }
 
     if (action === 'get') {
-      if (!ctx.input.fileId) throw new Error('fileId is required for get action');
+      if (!ctx.input.fileId) throw missingRequiredFieldError('fileId', 'get action');
       let file = await client.getFileInfo(ctx.input.fileId);
       return {
         output: { file: mapFile(file) },
@@ -111,7 +114,7 @@ export let manageFiles = SlateTool.create(spec, {
     }
 
     if (action === 'delete') {
-      if (!ctx.input.fileId) throw new Error('fileId is required for delete action');
+      if (!ctx.input.fileId) throw missingRequiredFieldError('fileId', 'delete action');
       await client.deleteFile(ctx.input.fileId);
       return {
         output: { deleted: true },

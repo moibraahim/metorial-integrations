@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { GitLabClient } from '../lib/client';
+import { gitLabServiceError } from '../lib/errors';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -82,8 +83,9 @@ export let manageBranch = SlateTool.create(spec, {
         };
       }
       case 'create': {
-        if (!ctx.input.branchName) throw new Error('Branch name is required');
-        if (!ctx.input.ref) throw new Error('Source ref is required to create a branch');
+        if (!ctx.input.branchName) throw gitLabServiceError('Branch name is required');
+        if (!ctx.input.ref)
+          throw gitLabServiceError('Source ref is required to create a branch');
         let branch = await client.createBranch(
           ctx.input.projectId,
           ctx.input.branchName,
@@ -103,7 +105,7 @@ export let manageBranch = SlateTool.create(spec, {
         };
       }
       case 'delete': {
-        if (!ctx.input.branchName) throw new Error('Branch name is required');
+        if (!ctx.input.branchName) throw gitLabServiceError('Branch name is required');
         await client.deleteBranch(ctx.input.projectId, ctx.input.branchName);
         return {
           output: {

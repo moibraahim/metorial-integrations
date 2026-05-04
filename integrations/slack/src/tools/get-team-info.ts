@@ -1,5 +1,6 @@
 import { SlateTool } from 'slates';
 import { SlackClient } from '../lib/client';
+import { slackActionScopes } from '../lib/scopes';
 import { spec } from '../spec';
 import { z } from 'zod';
 
@@ -12,6 +13,7 @@ export let getTeamInfo = SlateTool.create(spec, {
     readOnly: true
   }
 })
+  .scopes(slackActionScopes.teamInfo)
   .input(z.object({}))
   .output(
     z.object({
